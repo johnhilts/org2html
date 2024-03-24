@@ -62,13 +62,14 @@
   "Given a string of text, parse it. Input: text. Output: list suitable for use with something like cl-who."
   (let ((regex-scanners (make-scanners))
         (string (make-array '(0) :element-type 'base-char :fill-pointer 0 :adjustable t))
-        (parsed-lines ()))
+        (parsed-lines ())
+        (item-list ()))
     (with-input-from-string (in org-text)
       (with-output-to-string (out string)
         (do ((i 1 (incf i))
              (line #1=(read-line in nil nil) #1#)
              (match-found nil))
-            ((null line) (values (nreverse parsed-lines) (format nil "~%Original Lines:~%~A~%~D line~:P read." string (1- i))))
+            ((null line) (values (nreverse parsed-lines) (nreverse item-list) (format nil "~%Original Lines:~%~A~%~D line~:P read." string (1- i))))
           (loop for scanner in regex-scanners
                 do
                    (setq match-found nil)
@@ -79,14 +80,18 @@
                        (setq match-found t)
                        (let* ((is-list-item (eql (cdr scanner) :li))
                               (group-end (if is-list-item (if (null (aref group-ends 0)) 0 (aref group-ends 0)) 0))
-                              (nest-level (if (eql (cdr scanner) :li) (get-nest-level (car parsed-lines) group-end) nil))
+                              (nest-level (if (eql (cdr scanner) :li) (get-nest-level (car item-list) group-end) nil))
                               (group-index (1- (length group-starts)))
-                              (text (subseq line (aref group-starts group-index) (aref group-ends group-index))))
+                              (text (subseq line (aref group-starts group-index))))
                          (if nest-level
                              (progn
-                               (when (not (nest-level (car parsed-lines)))
-                                 (push (make-instance 'parsed-line :text "" :html-tag :ul) parsed-lines))
-                               (push (make-instance 'parsed-line :text text :html-tag (cdr scanner) :match-group-end group-end :nest-level nest-level) parsed-lines))
+                               (when (null item-list)
+                                 ;; (and
+                                 ;;      (null item-list)
+                                 ;;      (not (nest-level (car item-list))))
+                                 (push (list (make-instance 'parsed-line :text "" :html-tag :ul)) item-list)
+                                 (push item-list (list parsed-lines)))
+                               (push (make-instance 'parsed-line :text text :html-tag (cdr scanner) :match-group-end group-end :nest-level nest-level) item-list))
                              (push (make-instance 'parsed-line :text text :html-tag (cdr scanner)) parsed-lines)))
                        (return))))
           (when (not match-found)
@@ -176,6 +181,15 @@ Just some normal text here.
 - Item 2
  **** Even nexter level
 - Item 3
- - Item 4
-   - Item 5
+ - Sub-Item 4
+   - Sub-sub-Item 5
 - Item 6")
+
+#| sub-lists handling - better way??
+
+(defparameter *jfh/my-list* ())
+(push 'ul *jfh/my-list*)
+(push (list (list 'item1)) (cdr *jfh/my-list*))
+(push (list (list 'item2)) (cdr *jfh/my-list*))
+(push (list (list 'sub-item1)) (caadr *jfh/my-list*)) ; put sub-item1 under item2
+|#
