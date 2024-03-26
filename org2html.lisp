@@ -1,11 +1,27 @@
 (cl:in-package #:org2html)
 
-(defparameter *patterns* (list
-                          (cons "^(\\s+)?\\-\\s+(\\w+)" :li)
-                          (cons "^[\\s+]?\\*\\s+(\\w+)" :h1)
-                          (cons "^[\\s+]?\\*\\*\\s+(\\w+)" :h2)
-                          (cons "^[\\s+]?\\*\\*\\*\\s+(\\w+)" :h3)
-                          (cons "^[\\s+]?\\*\\*\\*\\*\\s+(\\w+)" :h4)))
+(defparameter *patterns-old* (list
+                              (cons "^(\\s+)?\\-\\s+(\\w+)" :li)
+                              (cons "^[\\s+]?\\*\\s+(\\w+)" :h1)
+                              (cons "^[\\s+]?\\*\\*\\s+(\\w+)" :h2)
+                              (cons "^[\\s+]?\\*\\*\\*\\s+(\\w+)" :h3)
+                              (cons "^[\\s+]?\\*\\*\\*\\*\\s+(\\w+)" :h4)))
+
+(defparameter *elements* (list
+                          (make-instance 'element :pattern "^(\\s+)?\\-\\s+(\\w+)" :html-tag :li  :is-item t)
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\s+(\\w+)" :html-tag :h1)
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\s+(\\w+)" :html-tag :h2)
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\s+(\\w+)" :html-tag :h3)
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\*\\s+(\\w+)" :html-tag :h4)))
+
+(defclass element ()
+  ((%pattern :reader pattern
+             :initarg :pattern)
+   (%html-tag :reader html-tag
+              :initarg :html-tag)
+   (%is-item :reader is-item
+             :initarg :is-item
+             :initform nil)))
 
 (defun make-scanner-from-pattern (pattern)
   "make a regex scanner from a pattern"
@@ -13,9 +29,9 @@
 
 (defun make-scanners ()
   "Pre-make scanners for the patterns we want to use."
-  (loop for pattern in *patterns*
+  (loop for element in *elements*
         collect
-        (cons (make-scanner-from-pattern (car pattern)) (cdr pattern))))
+        (cons (make-scanner-from-pattern (pattern element)) element)))
 
 (defclass parsed-line()
   ((%text :reader text
@@ -27,7 +43,10 @@
                      :initform nil)
    (%nest-level :reader nest-level
                 :initarg :nest-level
-                :initform nil))
+                :initform 0)
+   (%sub-list :accessor sub-list
+              :initarg :sub-list
+              :initform nil))
   (:documentation "The results of a parsed line."))
 
 (defmethod print-object ((parsed-line parsed-line) stream)
@@ -36,11 +55,12 @@
     (with-accessors ((text text)
                      (html-tag html-tag)
                      (match-group-end match-group-end)
-                     (nest-level nest-level))
+                     (nest-level nest-level)
+                     (sub-list sub-list))
         parsed-line
       (format stream
-	      "Text: ~S, HTML Tag: ~S~:[~:;, Regex Match Group End Pos: ~:*~D~]~:[~:;, Nest Level: ~:*~D~]"
-	      text html-tag match-group-end nest-level))))
+	      "Text: ~S, HTML Tag: ~S~:[~:;, Regex Match Group End Pos: ~:*~D~]~:[~:;, Nest Level: ~:*~D~]~:[~:;, Sub-List?: ~:*~A~]"
+	      text html-tag match-group-end nest-level (when sub-list t)))))
 
 (defgeneric get-nest-level (parsed-line group-end))
 (defmethod get-nest-level ((previous-line parsed-line) group-end)
@@ -55,10 +75,125 @@
                (nest-level previous-line))
               ((< group-end previous-group-end)
                (1- (nest-level previous-line)))))
-          0)
-      0))
+          1)
+      1))
 
 (defun parse-org-text (org-text)
+  "Given a string of text, parse it. Input: text. Output: list suitable for use with something like cl-who."
+  (let ((regex-scanners (make-scanners))
+        (string (make-array '(0) :element-type 'base-char :fill-pointer 0 :adjustable t))
+        (parsed-lines ()))
+    (with-input-from-string (in org-text)
+      (with-output-to-string (out string)
+        (do ((i 1 (incf i))
+             (line #1=(read-line in nil nil) #1#)
+             (match-found nil))
+            ((null line) (values (nreverse parsed-lines) (format nil "~%Original Lines:~%~A~%~D line~:P read." string (1- i))))
+          (loop for regex-scanner in regex-scanners
+                for scanner = (car regex-scanner)
+                for element = (cdr regex-scanner)
+                for previous-parsed-line = (car parsed-lines)
+                do
+                   (setq match-found nil)
+                   (multiple-value-bind (match-start _match-end group-starts group-ends)
+                       (ppcre:scan scanner line)
+                     (declare (ignore _match-end))
+                     (when match-start
+                       (setq match-found t)
+                       (let* ((is-list-item (eql (html-tag element) :li))
+                              (group-end (if is-list-item (if (null (aref group-ends 0)) 0 (aref group-ends 0)) 0))
+                              (nest-level (if (eql (html-tag element) :li) (get-nest-level previous-parsed-line group-end) nil))
+                              (group-index (1- (length group-starts)))
+                              (text (subseq line (aref group-starts group-index))))
+                         (if nest-level
+                             (progn
+                               (when (or
+                                      (zerop (nest-level previous-parsed-line))
+                                      (< (nest-level previous-parsed-line) nest-level))
+                                 (push (make-instance 'parsed-line :text "" :html-tag :ul :nest-level (nest-level previous-parsed-line)) parsed-lines))
+                               (push (make-instance 'parsed-line :text text :html-tag (html-tag element) :match-group-end group-end :nest-level nest-level) parsed-lines))
+                             (push (make-instance 'parsed-line :text text :html-tag (html-tag element)) parsed-lines)))
+                       (return))))
+          (when (not match-found)
+            (push (make-instance 'parsed-line :text line :html-tag :span) parsed-lines))
+          (format out "Line # ~D: ~A~%" i line))))))
+
+(defun build-tree (parsed-lines)
+  "Build a tree based on the parsed lines. Input: list of parsed-line. Output: tree of html tags suitable for feeding to cl-who."
+  (let ((index 0))
+    (labels ((build-tree-r ()
+               (let ((tree))
+                 (loop for previous-parsed-line = (car tree)
+                       for parsed-line = (nth index parsed-lines)
+                       while (< index (length parsed-lines))
+                       do
+                          (cond
+                            ((or
+                              (null tree)
+                              (= (nest-level parsed-line) (nest-level previous-parsed-line)))
+                             (push parsed-line tree))
+                            ((> (nest-level parsed-line) (nest-level previous-parsed-line))
+                             (let ((sub-tree (build-tree-r)))
+                               (setf (sub-list previous-parsed-line) sub-tree)))
+                            ((< (nest-level parsed-line) (nest-level previous-parsed-line))
+                             (return tree)))
+                          (incf index)
+                       finally (return tree)))))
+      (build-tree-r))))
+
+(defun build-tree-old (parsed-lines tree)
+  (loop for parsed-line in parsed-lines
+        for previous-parsed-line = (car tree)
+        for index = 0 then (incf index)
+        do
+        (cond
+          ((null tree)
+           ;; (break)
+           (push parsed-line tree))
+          ((= (nest-level parsed-line) (nest-level previous-parsed-line))
+           ;; (break)
+           (push parsed-line tree))
+          ((> (nest-level parsed-line) (nest-level previous-parsed-line))
+           (let ((sub-tree (build-tree (subseq parsed-lines index) (sub-list previous-parsed-line))))
+             ;; (break)
+             (setf (sub-list previous-parsed-line) sub-tree)))
+          ((< (nest-level parsed-line) (nest-level previous-parsed-line))
+           (return tree))))
+  tree)
+
+(defun parse-org-text-old2 (org-text)
+  "Given a string of text, parse it. Input: text. Output: list suitable for use with something like cl-who."
+  (let ((regex-scanners (make-scanners))
+        (string (make-array '(0) :element-type 'base-char :fill-pointer 0 :adjustable t))
+        (parsed-lines ()))
+    (with-input-from-string (in org-text)
+      (with-output-to-string (out string)
+        (do ((i 1 (incf i))
+             (line #1=(read-line in nil nil) #1#)
+             (match-found nil))
+            ((null line) (values (nreverse parsed-lines) (format nil "~%Original Lines:~%~A~%~D line~:P read." string (1- i))))
+          (loop for regex-scanner in regex-scanners
+                for scanner = (car regex-scanner)
+                for element = (cdr regex-scanner)
+                for previous-parsed-lines (car parsed-lines)
+                do
+                   (setq match-found nil)
+                   (multiple-value-bind (match-start _match-end group-starts _group-ends)
+                       (ppcre:scan scanner line)
+                     (declare (ignore _match-end _group-ends))
+                     (when match-start
+                       (setq match-found t)
+                       (let* ((group-index (1- (length group-starts)))
+                              (text (subseq line (aref group-starts group-index)))
+                              (nest-level (if (nest-level previous-parsed-lines) (if ))))
+                         (push (make-instance 'parsed-line :text text :html-tag (html-tag element) :nest-level 1) parsed-lines))
+                       (return))))
+          (when (not match-found)
+            (let ((previous-level (if (eql 'parsed-line (type-of (car parsed-lines))) (nest-level (car parsed-lines)) 1)))
+             (push (make-instance 'parsed-line :text line :html-tag :span :nest-level previous-level) parsed-lines)))
+          (format out "Line # ~D: ~A~%" i line))))))
+
+(defun parse-org-text-old (org-text)
   "Given a string of text, parse it. Input: text. Output: list suitable for use with something like cl-who."
   (let ((regex-scanners (make-scanners))
         (string (make-array '(0) :element-type 'base-char :fill-pointer 0 :adjustable t))
