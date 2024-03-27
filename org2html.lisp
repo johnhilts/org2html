@@ -54,13 +54,12 @@
   (print-unreadable-object (parsed-line stream :type t)
     (with-accessors ((text text)
                      (html-tag html-tag)
-                     (match-group-end match-group-end)
                      (nest-level nest-level)
                      (sub-list sub-list))
         parsed-line
       (format stream
-	      "Text: ~S, HTML Tag: ~S~:[~:;, Regex Match Group End Pos: ~:*~D~]~:[~:;, Nest Level: ~:*~D~]~:[~:;, Sub-List?: ~:*~A~]"
-	      text html-tag match-group-end nest-level (when sub-list t)))))
+	      "Text: ~S, HTML Tag: ~S~:[~:;, Nest Level: ~:*~D~]~:[~:;, Sub-List?: ~:*~A~]"
+	      text html-tag nest-level (when sub-list t)))))
 
 (defgeneric get-nest-level (parsed-line group-end))
 (defmethod get-nest-level ((previous-line parsed-line) group-end)
@@ -119,6 +118,40 @@
           (format out "Line # ~D: ~A~%" i line))))))
 
 (defun build-tree (parsed-lines)
+  "Build a tree based on the parsed lines. Input: list of parsed-line. Output: tree of html tags suitable for feeding to cl-who."
+  (let ((index 0)
+        (previous-parsed-line))
+    (labels ((adjust (parsed-line)
+               (incf index)
+               (setf previous-parsed-line parsed-line))
+             (build-tree-r ()
+               (let ((tree))
+                 (loop for parsed-line = (nth index parsed-lines)
+                       while (< index (length parsed-lines))
+                       do
+                          (progn
+                            ;; (break)
+                            (cond
+                              ((or
+                                (null tree)
+                                (= (nest-level parsed-line) (nest-level previous-parsed-line)))
+                               (push (list (html-tag parsed-line) (text parsed-line)) tree)
+                               (adjust parsed-line))
+                              ((> (nest-level parsed-line) (nest-level previous-parsed-line))
+                               (let ((sub-tree (build-tree-r)))
+                                 ;;(break)
+                                 (push sub-tree tree)
+                                 (adjust parsed-line)
+                                 ))
+                              ((< (nest-level parsed-line) (nest-level previous-parsed-line))
+                               (push (list (html-tag parsed-line) (text parsed-line)) tree)
+                               (when (zerop (nest-level parsed-line))
+                                 (adjust parsed-line))
+                               (return (reverse tree)))))
+                       finally (return (reverse tree))))))
+      (build-tree-r))))
+
+(defun build-tree-old2 (parsed-lines)
   "Build a tree based on the parsed lines. Input: list of parsed-line. Output: tree of html tags suitable for feeding to cl-who."
   (let ((index 0))
     (labels ((build-tree-r ()
