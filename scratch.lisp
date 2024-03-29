@@ -68,7 +68,7 @@
                ((< level previous-level)
                 (loop repeat (- previous-level level)
                       do
-                         (push (reverse tree) (car (car parents)))
+                         (setf (car (car parents)) (reverse tree))
                          (setf tree (pop parents)))))
              (push (list tag text level) tree)
              (setf previous-level level)
