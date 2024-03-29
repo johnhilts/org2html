@@ -135,7 +135,7 @@
                       do
                          (setf (car (car parents)) (reverse tree))
                          (setf tree (pop parents)))))
-             (push (list tag text level) tree)
+             (push (if (eql :ul tag) (list :ul) (list tag text)) tree)
              (setf previous-level level)
              (when verbose
                (format t "~&***************Input: ~A~%Tree: ~A~%Parents: ~A~%" parsed-line tree parents))
@@ -313,8 +313,36 @@
   `(who:with-html-output-to-string (,stream nil :prologue ,prologue :indent ,indent)
      (:html (:body ,@body))))
 
+;; this works
+(let ((my-html '((:html
+                  (:body
+                   (:H1 "Top") (:H2 "Next Level") (:SPAN "Just some normal text here.")
+                   (:H3 "Nexter Level")
+                   (:UL
+                    (:LI "Item 1")
+                    (:UL
+                     (:LI "Sub-Item 1"))
+                    (:LI "Item 2"))
+                   (:H4 "Even nexter level")
+                   (:UL
+                    (:LI "Item 3")
+                    (:UL
+                     (:LI "Sub-Item 4")
+                     (:UL (:LI "Sub-sub-Item 5")))
+                    (:LI "Item 6")))))))
+  (eval `(who:with-html-output-to-string
+             (stream nil :prologue t :indent t)
+           ,@my-html
+           )))
+
 (defun who-test ()
-  (let ((my-html (generate-html (parse-org-text *test-text*))))
+  (let ((my-html (build-tree (parse-org-text *test-text*))))
+    (eval `(who:with-html-output-to-string
+               (stream nil :prologue t :indent t)
+             ,@my-html))))
+
+(defun who-test-old ()
+  (let ((my-html (build-tree (parse-org-text *test-text*))))
     (eval
      `(with-my-html-output-to-string (*standard-output* :prologue t :indent t)
         ,my-html))))
