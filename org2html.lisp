@@ -117,7 +117,36 @@
             (push (make-instance 'parsed-line :text line :html-tag :span) parsed-lines))
           (format out "Line # ~D: ~A~%" i line))))))
 
-(defun build-tree (parsed-lines)
+(defun build-tree (parsed-lines &optional (verbose nil))
+  (let* ((tree)
+         (parents tree)
+         (previous-level 0))
+    (loop for parsed-line in parsed-lines
+          for tag = (html-tag parsed-line)
+          for text = (text parsed-line)
+          for level = (nest-level parsed-line)
+          do
+             (cond
+               ((> level previous-level)
+                (push tree parents)
+                (setf tree (car tree)))
+               ((< level previous-level)
+                (loop repeat (- previous-level level)
+                      do
+                         (setf (car (car parents)) (reverse tree))
+                         (setf tree (pop parents)))))
+             (push (list tag text level) tree)
+             (setf previous-level level)
+             (when verbose
+               (format t "~&***************Input: ~A~%Tree: ~A~%Parents: ~A~%" parsed-line tree parents))
+          finally (when (> level 0)
+                    (loop repeat level
+                          do
+                             (setf (car (car parents)) (reverse tree))
+                             (setf tree (pop parents)))))
+    (reverse tree)))
+
+(defun build-tree-old3 (parsed-lines)
   "Build a tree based on the parsed lines. Input: list of parsed-line. Output: tree of html tags suitable for feeding to cl-who."
   (let ((index 0)
         (previous-parsed-line))
