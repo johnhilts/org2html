@@ -53,13 +53,11 @@
 (defun create-list-from-scratch (&optional (verbose nil) (inputs *my/input*))
   (let* ((tree)
          (parents tree)
-         (previous-level 0)
-         (counter 0))
+         (previous-level 0))
     (loop for input in inputs
           for tag = (car input)
           for text = (cadr input)
           for level = (caddr input)
-          while (<= (incf counter) (* 2 (length inputs)))
           do
              (cond
                ((> level previous-level)
@@ -74,6 +72,4 @@
              (setf previous-level level)
              (when verbose
                (format t "~&***************Input: ~A~%Tree: ~A~%Parents: ~A~%" input tree parents)))
-    (when verbose
-      (format t "Counter: ~D" counter))
     (reverse tree)))
