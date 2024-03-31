@@ -5,4 +5,5 @@
   (:local-nicknames (#:web #:jfh-web-core))
   (:export
    #:*web-configuration*
-   #:*static-paths-maps*))
+   #:*static-paths-maps*
+   #:setup-dispatch-for-all-html-files))

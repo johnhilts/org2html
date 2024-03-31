@@ -3,4 +3,4 @@
 
 (defun format-for-web (string)
   "Replace line-breaks \n with the HTML <br /> element."
-  (cl-ppcre:regex-replace-all (string #\Newline) string "<br />"))
+  (cl-ppcre:regex-replace-all (string #\Return) string "<br />"))

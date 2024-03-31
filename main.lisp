@@ -12,6 +12,7 @@
 	    org2html-web-app:*static-paths-maps*)))
 
     (map-static-paths)
+    (web-app:setup-dispatch-for-all-html-files)
     
     (let ((web-application (jfh-web-core:web-application-shell)))
 

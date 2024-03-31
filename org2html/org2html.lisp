@@ -17,11 +17,13 @@
              :initform nil)))
 
 (defparameter *elements* (list
-                          (make-instance 'element :pattern "^(\\s+)?\\-\\s+(\\w+)" :html-tag :li  :is-item t)
+                          (make-instance 'element :pattern "^(\\s+)?\\-\\s+(\\w+)" :html-tag :li :is-item t)
                           (make-instance 'element :pattern "^[\\s+]?\\*\\s+(\\w+)" :html-tag :h1)
                           (make-instance 'element :pattern "^[\\s+]?\\*\\*\\s+(\\w+)" :html-tag :h2)
                           (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\s+(\\w+)" :html-tag :h3)
-                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\*\\s+(\\w+)" :html-tag :h4)))
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\*\\s+(\\w+)" :html-tag :h4)
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\*\\*\\s+(\\w+)" :html-tag :h5)
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\*\\*\\*\\s+(\\w+)" :html-tag :h6)))
 
 (defun make-scanner-from-pattern (pattern)
   "make a regex scanner from a pattern"
@@ -77,7 +79,7 @@
           1)
       1))
 
-(defun parse-org-text (org-text)
+(defun parse-org-text (org-text &optional formatter)
   "Given a string of text, parse it. Input: text. Output: list suitable for use with something like cl-who."
   (let ((regex-scanners (make-scanners))
         (string (make-array '(0) :element-type 'base-char :fill-pointer 0 :adjustable t))
@@ -114,7 +116,8 @@
                              (push (make-instance 'parsed-line :text text :html-tag (html-tag element)) parsed-lines)))
                        (return))))
           (when (not match-found)
-            (push (make-instance 'parsed-line :text line :html-tag :span) parsed-lines))
+            (let ((text (if formatter (funcall formatter line) line)))
+              (push (make-instance 'parsed-line :text text :html-tag :span) parsed-lines)))
           (format out "Line # ~D: ~A~%" i line))))))
 
 (defun build-tree (parsed-lines &optional (verbose nil))
