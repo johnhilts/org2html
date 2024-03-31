@@ -1,0 +1,64 @@
+(in-package #:jfh-utility)
+
+(define-condition file-missing-error (file-error)
+  ((app-message :initarg :app-message
+		:reader app-message))
+  (:report (lambda (condition stream)
+             (format stream "~AReported file name: ~S." (app-message condition) (file-error-pathname condition)))))
+
+(defun read-complete-file (path &optional (create-if-missing-p nil))
+  "read complete file all at once"
+  (restart-case
+      (with-open-file (in path :if-does-not-exist (if create-if-missing-p :create :error))
+	(read in nil))
+    (file-missing-create ()
+      :report "File Missing - Create."
+      (format t "Create missing file.")
+      (read-complete-file path t))
+    (file-missing-error (file-error &optional (file-path path))
+      :report "File Missing - Error!"
+      (error (make-condition 'file-missing-error
+			     :app-message (format nil "The file for ~S is missing; the requested operation cannot be completed without it." file-path)
+			     :pathname (file-error-pathname file-error))))))
+#|
+Example how to handle restarts
+(handler-bind ((error
+		 #'(lambda (c)
+		     (invoke-restart 'jfh-utility::file-missing-create))))
+  (jfh-utility::read-complete-file "fake-file.txt"))
+|#
+
+(defun handle-example ()
+  (handler-bind ((file-error
+		   #'(lambda (c)
+		       (print (file-error-pathname c))
+		       (invoke-restart 'jfh-utility::file-missing-create))))
+    (jfh-utility::read-complete-file "fake-file.txt")))
+
+(defun handle-example-angry (&optional (missing-file-name "fake-file.txt"))
+  (handler-bind ((file-missing-error
+		   #'(lambda (c)
+		       (return-from handle-example-angry c)))
+		 (file-error
+		   #'(lambda (c)
+		       (if (search "fake" (namestring (file-error-pathname c)))
+			   (error "No fake files allowed!")
+			   (invoke-restart 'jfh-utility::file-missing-error c "users index")))))
+    (jfh-utility::read-complete-file missing-file-name)))
+on end-of-page (condition) ((message :initform "End of the Page!" :reader message)))
+(handler-bind ((end-of-page
+         (lambda (c)
+           (message c)
+           (print "hit any graphic key then enter to continue")
+           (read)
+           (invoke-restart 'continue))))
+  (progn
+    (restart-case (signal 'end-of-page)
+      (continue ()))
+    (print "continuing ...")))
+ write-complete-file (path list)
+  "write complete file all at once"
+  (with-open-file (out path :direction :output :if-exists :supersede :if-does-not-exist :create)
+    (prin1 list out))) ;; print is just like prin1, except it precedes each output with a line break, and ends with a space
+
+

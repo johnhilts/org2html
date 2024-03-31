@@ -1,0 +1,1 @@
+(:http-port 5096 :ssl-port nil :static-root "" :swank-port 4010 :swank-interface "192.168.1.18" :user-path-root "./users/")

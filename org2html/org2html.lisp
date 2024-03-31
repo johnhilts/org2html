@@ -7,13 +7,6 @@
                               (cons "^[\\s+]?\\*\\*\\*\\s+(\\w+)" :h3)
                               (cons "^[\\s+]?\\*\\*\\*\\*\\s+(\\w+)" :h4)))
 
-(defparameter *elements* (list
-                          (make-instance 'element :pattern "^(\\s+)?\\-\\s+(\\w+)" :html-tag :li  :is-item t)
-                          (make-instance 'element :pattern "^[\\s+]?\\*\\s+(\\w+)" :html-tag :h1)
-                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\s+(\\w+)" :html-tag :h2)
-                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\s+(\\w+)" :html-tag :h3)
-                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\*\\s+(\\w+)" :html-tag :h4)))
-
 (defclass element ()
   ((%pattern :reader pattern
              :initarg :pattern)
@@ -22,6 +15,13 @@
    (%is-item :reader is-item
              :initarg :is-item
              :initform nil)))
+
+(defparameter *elements* (list
+                          (make-instance 'element :pattern "^(\\s+)?\\-\\s+(\\w+)" :html-tag :li  :is-item t)
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\s+(\\w+)" :html-tag :h1)
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\s+(\\w+)" :html-tag :h2)
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\s+(\\w+)" :html-tag :h3)
+                          (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\*\\s+(\\w+)" :html-tag :h4)))
 
 (defun make-scanner-from-pattern (pattern)
   "make a regex scanner from a pattern"
@@ -222,7 +222,7 @@
           ((< (nest-level parsed-line) (nest-level previous-parsed-line))
            (return tree))))
   tree)
-
+#|
 (defun parse-org-text-old2 (org-text)
   "Given a string of text, parse it. Input: text. Output: list suitable for use with something like cl-who."
   (let ((regex-scanners (make-scanners))
@@ -294,7 +294,7 @@
           (when (not match-found)
             (push (make-instance 'parsed-line :text line :html-tag :span) parsed-lines))
           (format out "Line # ~D: ~A~%" i line))))))
-
+|#
 (defgeneric generate-html (parsed-line))
 (defmethod generate-html ((parsed-line parsed-line))
   "Takes list of type parsed-line and converts to html"
@@ -335,11 +335,14 @@
            ,@my-html
            )))
 
-(defun who-test ()
-  (let ((my-html (build-tree (parse-org-text *test-text*))))
+(defun who-test (&optional (text *test-text*))
+  (let ((my-html (build-tree (parse-org-text text))))
     (eval `(who:with-html-output-to-string
                (stream nil :prologue t :indent t)
-             ,@my-html))))
+             (:html
+              (:body
+               (:div
+                ,@my-html)))))))
 
 (defun who-test-old ()
   (let ((my-html (build-tree (parse-org-text *test-text*))))
@@ -356,26 +359,31 @@
    `(with-my-html-output-to-string (*standard-output* :prologue t :indent t)
       ,my-html)))
 
+#|
 ;; this works!!
 (let ((my-html (generate-html (parse-org-text *test-text*))))
   (eval
    `(with-my-html-output-to-string (*standard-output* :prologue t :indent t)
       ,my-html)))
-
+|#
+#|
 ;; without eval
 ;; (setf my-html '(:div (:span "more html")))
 (let ((my-html (generate-html (parse-org-text *test-text*))))
   (who:with-html-output-to-string (*standard-output* nil :prologue t :indent t)
     (format nil "~a" '(:html (:body my-html)))))
+|#
 
 (defun chat-gpt-generate-html (tags)
   (who:with-html-output-to-string (s nil :prologue t :indent t)
     `(who:htm (:html (:body ,@tags)))))
 
+#|
 ;; (setf my-html '(:div (:span "more html")))
 (let ((my-html (generate-html (parse-org-text *test-text*))))
   (setf my-html '(:div (:span "more html")))
   (generate-html my-html))
+|#
 
 ;; something else to try - didn't work
 (defun my-generate-html (tags)

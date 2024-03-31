@@ -1,0 +1,44 @@
+    html {
+        width: 100%;
+        margin: 0;
+        background-color: #1a2a3d;
+        color: #c8d7ea;
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+        border-top:2px solid #81e5ec
+    }
+
+    * {
+        box-sizing:border-box
+    }
+
+    h1, h2 {
+        color:#fff
+    }
+
+    body {
+        margin: 0 auto;
+        padding:1rem
+    }
+
+    a {
+        color:#81e5ec
+    }
+
+    main {
+        max-width: 50ch;
+        margin:0 auto
+    }
+
+    pre {
+        padding:1rem
+    }
+
+    img {
+        width: 100%
+    }
+
+    main[data-astro-cid-egg7nqdx] {
+        max-width: 50ch;
+        margin: 0 auto
+    }

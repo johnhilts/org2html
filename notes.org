@@ -1,0 +1,16 @@
+* 03/29/2024 org2html thoughts
+** todo list
+- [ ] parse org titles
+- [ ] parse tables
+- [ ] parse source code blocks
+- [ ] deliver text to the parser
+  - I have elisp to send posts!!
+  - [ ] Send a region to the server
+  - [ ] Send a file location to the server
+- [ ] serve the html over http
+- [ ] "as-is"
+  - No other add-ons besides the base HTML
+  - [ ] as a mini slide-show
+    - Just need next and previous
+    - Would probably make the files follow a particular format
+                                              
