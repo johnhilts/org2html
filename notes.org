@@ -1,9 +1,9 @@
 * 03/29/2024 org2html thoughts
-** todo list [0/6]
-- [ ] parse checkboxes!
+** todo list [1/6]
 - [ ] parse org titles
 - [ ] parse tables
 - [ ] parse source code blocks
+- [X] parse checkboxes!
 - [-] deliver text to the parser
   - I have elisp to send posts!!
   - [ ] Send a region to the server

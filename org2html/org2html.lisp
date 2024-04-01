@@ -10,6 +10,7 @@
              :initform nil)))
 
 (defparameter *elements* (list
+                          (make-instance 'element :pattern "^(\\s+)?\\- \\[ \\]\\s+(\\w+)" :html-tag :input)
                           (make-instance 'element :pattern "^(\\s+)?\\-\\s+(\\w+)" :html-tag :li :is-item t)
                           (make-instance 'element :pattern "^[\\s+]?\\*\\s+(\\w+)" :html-tag :h1)
                           (make-instance 'element :pattern "^[\\s+]?\\*\\*\\s+(\\w+)" :html-tag :h2)
@@ -131,7 +132,7 @@
                       do
                          (setf (car (car parents)) (reverse tree))
                          (setf tree (pop parents)))))
-             (push (if (eql :ul tag) (list :ul) (list tag text)) tree)
+             (push (if (eql :ul tag) (list :ul) (if (eql :input tag) (list :input :type "checkbox" text :br) (list tag text))) tree)
              (setf previous-level level)
              (when verbose
                (format t "~&***************Input: ~A~%Tree: ~A~%Parents: ~A~%" parsed-line tree parents))
@@ -162,7 +163,8 @@ Just some normal text here.
 - Item 3
  - Sub-Item 4
    - Sub-sub-Item 5
-- Item 6")
+- Item 6
+- [ ] Checkbox 1")
 
 (defun save-as-html (html)
   "Saves html to an html file."
