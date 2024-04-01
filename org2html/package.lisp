@@ -4,4 +4,5 @@
   (:use #:common-lisp)
   (:export
    #:build-tree
-   #:parse-org-text))
+   #:parse-org-text
+   #:save-as-html))

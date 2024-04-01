@@ -41,6 +41,22 @@
 	       (:div (:textarea :id "org-text" :name "org-text" :placeholder "Add org mode markdown text here." :autofocus "autofocus" :rows "40" :cols "150"))
 	       (:div (:button "Add")))))))))
 
+(tbnl:define-easy-handler (receive :uri "/receive") ()
+  "http post handler that orchestrates org -> html conversion then saves as a file and returns a url to that file."
+  (let* ((org-text (tbnl:post-parameter "org-text"))
+         (the-html (org2html:build-tree (org2html:parse-org-text (if (zerop (length org-text)) org2html::*test-text* org-text) #'format-for-web))))
+    (org2html:save-as-html (eval
+                            `(who:with-html-output-to-string
+                                 (*standard-output* nil :prologue t :indent t)
+                               (:html
+                                (who:str (common-header "Org 2 Html"))
+                                (:body
+                                 (:div
+                                  ,@the-html))))))
+    (who:with-html-output-to-string
+        (*standard-output* nil :prologue t :indent t)
+      (:html (:body (:div (:a :href #1="http://192.168.1.18:5096/show.html" #1#)))))))
+
 (tbnl:define-easy-handler (version-page :uri "/version") ()
   (who:with-html-output-to-string
       (*standard-output* nil :prologue t :indent t)

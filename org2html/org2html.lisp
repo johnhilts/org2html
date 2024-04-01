@@ -163,3 +163,9 @@ Just some normal text here.
  - Sub-Item 4
    - Sub-sub-Item 5
 - Item 6")
+
+(defun save-as-html (html)
+  "Saves html to an html file."
+  (let ((path "./html/show.html"))
+    (with-open-file (out path  :direction :output :if-exists :supersede :if-does-not-exist :create)
+      (format out html))))

@@ -1,13 +1,18 @@
 * 03/29/2024 org2html thoughts
-** todo list [0/5]
+** todo list [0/6]
 - [ ] parse checkboxes!
 - [ ] parse org titles
 - [ ] parse tables
 - [ ] parse source code blocks
-- [ ] deliver text to the parser
+- [-] deliver text to the parser
   - I have elisp to send posts!!
   - [ ] Send a region to the server
-  - [ ] Send a file location to the server
+    - [ ] Write elisp part
+    - [ ] Return the URL that will serve the html
+  - [-] Send a file location to the server
+    - [ ] Write elisp part
+      - [ ] Including the url encoding
+    - [X] Return the URL that will serve the html
 - [-] serve the html over http
   - [X] "as-is"
     - No other add-ons besides the base HTML
