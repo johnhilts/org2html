@@ -10,6 +10,7 @@
              :initform nil)))
 
 (defparameter *elements* (list
+                          (make-instance 'element :pattern "^\\#\\+title:\\s(.+)" :html-tag :title)
                           (make-instance 'element :pattern "^(\\s+)?\\- \\[ \\]\\s+(\\w+)" :html-tag :input)
                           (make-instance 'element :pattern "^(\\s+)?\\-\\s+(\\w+)" :html-tag :li :is-item t)
                           (make-instance 'element :pattern "^[\\s+]?\\*\\s+(\\w+)" :html-tag :h1)
@@ -115,44 +116,62 @@
           (format out "Line # ~D: ~A~%" i line))))))
 
 (defun build-tree (parsed-lines &optional (verbose nil))
-  (let* ((tree)
-         (parents tree)
-         (previous-level 0))
-    (loop for parsed-line in parsed-lines
-          for tag = (html-tag parsed-line)
-          for text = (text parsed-line)
-          for level = (nest-level parsed-line)
-          do
-             (cond
-               ((> level previous-level)
-                (push tree parents)
-                (setf tree (car tree)))
-               ((< level previous-level)
-                (loop repeat (- previous-level level)
-                      do
-                         (setf (car (car parents)) (reverse tree))
-                         (setf tree (pop parents)))))
-             (push (if (eql :ul tag) (list :ul) (if (eql :input tag) (list :input :type "checkbox" text :br) (list tag text))) tree)
-             (setf previous-level level)
-             (when verbose
-               (format t "~&***************Input: ~A~%Tree: ~A~%Parents: ~A~%" parsed-line tree parents))
-          finally (when (> level 0)
-                    (loop repeat level
-                          do
-                             (setf (car (car parents)) (reverse tree))
-                             (setf tree (pop parents)))))
-    (reverse tree)))
+  (flet ((complete-tag (tag text)
+           (cond
+             ((eql :ul tag)
+              (list :ul))
+             ((eql :input tag)
+              (list :input :type "checkbox" text :br))
+             ((eql :title tag)
+              (list :title text)) 
+             (t
+              (list tag text)))))
+    (let* ((body-tree)
+           (head-tree)
+           (parents body-tree)
+           (previous-level 0))
+      (loop for parsed-line in parsed-lines
+            for tag = (html-tag parsed-line)
+            for text = (text parsed-line)
+            for level = (nest-level parsed-line)
+            do
+               (cond
+                 ((> level previous-level)
+                  (push body-tree parents)
+                  (setf body-tree (car body-tree)))
+                 ((< level previous-level)
+                  (loop repeat (- previous-level level)
+                        do
+                           (setf (car (car parents)) (reverse body-tree))
+                           (setf body-tree (pop parents)))))
+               (if (eql :title tag)
+                   (push (complete-tag tag text) head-tree)
+                   (push (complete-tag tag text) body-tree))
+               (setf previous-level level)
+               (when verbose
+                 (format t "~&***************Input: ~A~%Tree: ~A~%Parents: ~A~%" parsed-line body-tree parents))
+            finally (when (> level 0)
+                      (loop repeat level
+                            do
+                               (setf (car (car parents)) (reverse body-tree))
+                               (setf body-tree (pop parents)))))
+      (list (cons 'html-head (reverse head-tree))
+            (cons 'html-body (reverse body-tree))))))
 
 (defun who-test (&optional (text *test-text*))
-  (let ((my-html (build-tree (parse-org-text text))))
+  (let* ((all-html (build-tree (parse-org-text text)))
+         (html-head (cdr (assoc 'html-head all-html)))
+         (html-body (cdr (assoc 'html-body all-html))))
     (eval `(who:with-html-output-to-string
                (stream nil :prologue t :indent t)
              (:html
+              (:head ,@html-head)
               (:body
                (:div
-                ,@my-html)))))))
+                ,@html-body)))))))
 
-(defparameter *test-text* "* Top
+(defparameter *test-text* "#+title: The Test Document
+* Top
 ** Next Level
 Just some normal text here.
 *** Nexter Level

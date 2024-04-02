@@ -5,4 +5,6 @@
   (:export
    #:build-tree
    #:parse-org-text
-   #:save-as-html))
+   #:save-as-html
+   #:html-head
+   #:html-body))

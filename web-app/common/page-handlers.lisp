@@ -44,15 +44,18 @@
 (tbnl:define-easy-handler (receive :uri "/receive") ()
   "http post handler that orchestrates org -> html conversion then saves as a file and returns a url to that file."
   (let* ((org-text (tbnl:post-parameter "org-text"))
-         (the-html (org2html:build-tree (org2html:parse-org-text (if (zerop (length org-text)) org2html::*test-text* org-text) #'format-for-web))))
+         (all-html (org2html:build-tree (org2html:parse-org-text (if (zerop (length org-text)) org2html::*test-text* org-text) #'format-for-web)))
+         (html-head (cdr (assoc 'org2html:html-head all-html)))
+         (html-body (cdr (assoc 'org2html:html-body all-html)))
+         (title (cadr (assoc :title html-head))))
     (org2html:save-as-html (eval
                             `(who:with-html-output-to-string
                                  (*standard-output* nil :prologue t :indent t)
                                (:html
-                                (who:str (common-header "Org 2 Html"))
+                                (who:str (common-header (if ,title ,title "Org 2 Html")))
                                 (:body
                                  (:div
-                                  ,@the-html))))))
+                                  ,@html-body))))))
     (who:with-html-output-to-string
         (*standard-output* nil :prologue t :indent t)
       (:html (:body (:div (:a :href #1="http://192.168.1.18:5096/show.html" #1#)))))))
