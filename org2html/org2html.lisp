@@ -118,14 +118,10 @@
 (defun build-tree (parsed-lines &optional (verbose nil))
   (flet ((complete-tag (tag text)
            (cond
-             ((eql :ul tag)
-              (list :ul))
-             ((eql :input tag)
-              (list :input :type "checkbox" text :br))
-             ((eql :title tag)
-              (list :title text)) 
-             (t
-              (list tag text)))))
+             ((eql :ul tag) (list :ul))
+             ((eql :input tag) (list :input :type "checkbox" text :br))
+             ((eql :title tag) (list :title text)) 
+             (t (list tag text)))))
     (let* ((body-tree)
            (head-tree)
            (parents body-tree)
