@@ -73,3 +73,40 @@
              (when verbose
                (format t "~&***************Input: ~A~%Tree: ~A~%Parents: ~A~%" input tree parents)))
     (reverse tree)))
+
+
+(defun replace-urls (string)
+  (let ((regex "(?:http|https)://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,3}(/\\S*)?")
+        (adjust-length 0)
+        (anchor-start "<a href=\"")
+        (anchor-end "</a>"))
+    (do
+     ((i 0)
+      (no-matches)
+      (results string))
+     ((or
+       (>= i (length string))
+       no-matches)
+      results)
+      (multiple-value-bind
+            (match-start match-end group-starts group-ends)
+          (cl-ppcre:scan regex string :start i)
+        (declare (ignore group-starts group-ends))
+        (when match-start
+          (let ((the-match (subseq string match-start match-end)))
+            (setf results (format nil "~A~A~A\">~A~A~A"
+                                  (subseq results 0 (+ match-start adjust-length))
+                                  anchor-start
+                                  the-match
+                                  the-match
+                                  anchor-end
+                                  (subseq string match-end)))
+            (setf adjust-length (+ 2 (apply #'+ (mapcar #'length (list anchor-start anchor-end the-match)))))
+            (setf i (1+ match-start))
+            (format t "match: ~A~%" the-match)))
+        (unless match-start
+          (setf no-matches t))))))
+
+(replace-urls "Search on https://www.google.com, then veg-out on https://www.youtube.com")
+(replace-urls "Search on https://www.google.com - it's the best")
+(replace-urls "Pick your favorite: https://www.google.com, https://www.youtube.com")
