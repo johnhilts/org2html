@@ -115,6 +115,40 @@
               (push (make-instance 'parsed-line :text text :html-tag :span) parsed-lines)))
           (format out "Line # ~D: ~A~%" i line))))))
 
+(defun format-urls (string)
+  "Format text with URLs as a cl-who sexp. Input: text. Output: cl-who sexp of (:span text) or if URLs are found then (:span (:a :href \"url\" url))"
+  (let ((regex "(?:http|https)://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,3}(/\\S*)?"))
+    (do
+     ((i 0)
+      (no-matches)
+      (results (list :span))
+      (next-start-pos 0))
+     ((or
+       (>= i (length string))
+       no-matches)
+      (cond
+        ((>= next-start-pos (length string)) results)
+        (t (append results (subseq string next-start-pos)))))
+      (multiple-value-bind
+            (match-start match-end group-starts group-ends)
+          (cl-ppcre:scan regex string :start i)
+        (declare (ignore group-starts group-ends))
+        (when match-start
+          (let ((the-match (subseq string match-start match-end)))
+            (setf results (list results
+                                  (subseq string next-start-pos match-start)
+                                  (list :a :href (format nil "~S" the-match) the-match)))
+            (setf next-start-pos match-end)
+            (setf i (1+ match-end))
+            (format t "match: ~A~%" the-match)))
+        (unless match-start
+          (setf no-matches t))))))
+
+(defun run-format-urls-tests ()
+  (let ((s "Search on https://www.google.com, then veg-out on https://www.youtube.com")) (format t "~S: ~S~%~%**********" s (format-urls s)))
+  (let ((s "Search on https://www.google.com - it's the best"))(format t "~S: ~S~%~%**********" s (format-urls s)))
+  (let ((s "Pick your favorite: https://www.google.com, https://www.youtube.com")) (format t "~S: ~S~%~%**********" s (format-urls s))))
+
 (defun build-tree (parsed-lines &optional (verbose nil))
   (flet ((complete-tag (tag text)
            (cond
