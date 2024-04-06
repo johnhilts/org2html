@@ -131,7 +131,7 @@
          no-matches)
         (cond
           ((>= next-start-pos (length string)) results)
-          (t (append results (subseq string next-start-pos)))))
+          (t (append results (list (subseq string next-start-pos))))))
         (multiple-value-bind
               (match-start match-end group-starts group-ends)
             (cl-ppcre:scan regex string :start i)
@@ -140,8 +140,7 @@
             (let ((the-match (subseq string match-start match-end)))
               (setf results (append results (format-url next-start-pos match-start the-match)))
               (setf next-start-pos match-end)
-              (setf i (1+ match-end))
-              (format t "match: ~A~%" the-match)))
+              (setf i (1+ match-end))))
           (unless match-start
             (setf no-matches t)))))))
 
