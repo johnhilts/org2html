@@ -116,15 +116,20 @@
           (format out "Line # ~D: ~A~%" i line))))))
 
 (defun format-urls (string)
-  "Format text with URLs as a cl-who sexp. Input: text. Output: cl-who sexp of (:span text) or if URLs are found then (:span (:a :href \"url\" url))"
+  "Format text with URLs as a cl-who sexp.
+Input: text.
+Output: cl-who sexp of (:span text) or if URLs are found then (:span (:a :href \"url\" url))"
   (flet ((format-url (part-before-match-start match-start the-match)
+           "Format 1 URL.
+Input: part of target string preceding matching part, match start position, matching part of string.
+Output: cl-who list of string + anchor tag surrounding URL."
            (list (subseq string part-before-match-start match-start)
-                 (list :a :href (format nil "~S" the-match) the-match))))
+                 (list :a :href (format nil "~A" the-match) the-match))))
     (let ((regex "(?:http|https)://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,3}(/\\S*)?"))
       (do
        ((i 0)
         (no-matches)
-        (results (list :span))
+        (results ())
         (next-start-pos 0))
        ((or
          (>= i (length string))
@@ -153,11 +158,12 @@
 
 (defun build-tree (parsed-lines &optional (verbose nil))
   (flet ((complete-tag (tag text)
+           (let ((formatted-text (format-urls text)))
            (cond
              ((eql :ul tag) (list :ul))
-             ((eql :input tag) (list :input :type "checkbox" text :br))
-             ((eql :title tag) (list :title text)) 
-             (t (list tag text)))))
+             ((eql :input tag) (apply #'list `(:input :type "checkbox" ,@formatted-text :br)))
+             ((eql :title tag) (apply #'list `(:title ,@formatted-text))) 
+             (t (apply #'list `(,tag ,@formatted-text)))))))
     (let* ((body-tree)
            (head-tree)
            (parents body-tree)
