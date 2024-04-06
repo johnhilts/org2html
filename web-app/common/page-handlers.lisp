@@ -18,15 +18,18 @@
 (tbnl:define-easy-handler (show :URI "/show") ()
   "show converted org markdown handler"
   (let* ((org-text (tbnl:post-parameter "org-text"))
-         (the-html (org2html:build-tree (org2html:parse-org-text (if (zerop (length org-text)) org2html::*test-text* org-text) #'format-for-web))))
+         (all-html (org2html:build-tree (org2html:parse-org-text (if (zerop (length org-text)) org2html::*test-text* org-text) #'format-for-web)))
+         (html-head (cdr (assoc 'org2html:html-head all-html)))
+         (html-body (cdr (assoc 'org2html:html-body all-html)))
+         (title (cadr (assoc :title html-head))))
     (eval
      `(who:with-html-output-to-string
           (*standard-output* nil :prologue t :indent t)
         (:html
-         (who:str (common-header "Org 2 Html"))
+         (who:str (common-header (if ,title ,title "Org 2 Html")))
          (:body
           (:div
-           ,@the-html)))))))
+           ,@html-body)))))))
 
 (tbnl:define-easy-handler (add :URI "/add") ()
   "add org markdown handler"
