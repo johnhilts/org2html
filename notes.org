@@ -1,8 +1,21 @@
 * 03/29/2024 org2html thoughts
-** todo list [2/6]
-- [ ] parse links
+** todo list [3/7]
+- [-] parse source code blocks
+  - [X] parse code
+  - [ ] update header to use highlight.js
+    - [ ] We need a table to map the source block language names to the highlight.js names.
+    - [ ] These styles and js need to be added
+      #+begin_src html
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- and it's easy to individually load additional languages -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/lisp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/scheme.min.js"></script>
+    <script>hljs.highlightAll();</script>
+      #+end_src
 - [ ] parse tables
-- [ ] parse source code blocks
+- [X] parse links
 - [X] parse org titles
 - [X] parse checkboxes!
 - [-] deliver text to the parser

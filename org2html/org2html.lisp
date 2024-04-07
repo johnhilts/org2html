@@ -7,9 +7,13 @@
               :initarg :html-tag)
    (%is-item :reader is-item
              :initarg :is-item
+             :initform nil)
+   (%is-code :reader is-code
+             :initarg :is-code
              :initform nil)))
 
 (defparameter *elements* (list
+                          (make-instance 'element :pattern "^\\#\\+begin_src\\s(\\w+)" :html-tag :code :is-code t)
                           (make-instance 'element :pattern "^\\#\\+title:\\s(.+)" :html-tag :title)
                           (make-instance 'element :pattern "^(\\s+)?\\- \\[ \\]\\s+(\\w+)" :html-tag :input)
                           (make-instance 'element :pattern "^(\\s+)?\\-\\s+(\\w+)" :html-tag :li :is-item t)
@@ -58,6 +62,23 @@
 	      "Text: ~S, HTML Tag: ~S~:[~:;, Nest Level: ~:*~D~]~:[~:;, Sub-List?: ~:*~A~]"
 	      text html-tag nest-level (when sub-list t)))))
 
+(defun parse-source-code-block (in line tag)
+  "Parse source code block. Input: input stream and parsed lines. First line of source code block. Output: parsed lines."
+  (let ((output-string (make-array '(0) :element-type 'base-char :fill-pointer 0 :adjustable t)))
+    (with-output-to-string (out output-string)
+      (do
+       (end-of-block)
+       ((or
+         (null line)
+         end-of-block)
+        (make-instance 'parsed-line :html-tag tag :text output-string :nest-level 1)) ;; todo: capture language name here
+
+        (setf line (read-line in nil nil))
+        (when (search "#+end_src" line)
+          (setf end-of-block t))
+        (unless end-of-block
+          (format out "~A~%" line))))))
+
 (defgeneric get-nest-level (parsed-line group-end))
 (defmethod get-nest-level ((previous-line parsed-line) group-end)
   "How nested is the list item? Input: previous parsed line and current lines length of beginning spaces. Output: the number of nested levels."
@@ -96,19 +117,23 @@
                      (declare (ignore _match-end))
                      (when match-start
                        (setq match-found t)
-                       (let* ((is-list-item (eql (html-tag element) :li))
-                              (group-end (if is-list-item (if (null (aref group-ends 0)) 0 (aref group-ends 0)) 0))
-                              (nest-level (if (eql (html-tag element) :li) (get-nest-level previous-parsed-line group-end) nil))
-                              (group-index (1- (length group-starts)))
-                              (text (subseq line (aref group-starts group-index))))
-                         (if nest-level
-                             (progn
-                               (when (or
-                                      (zerop (nest-level previous-parsed-line))
-                                      (< (nest-level previous-parsed-line) nest-level))
-                                 (push (make-instance 'parsed-line :text "" :html-tag :ul :nest-level (nest-level previous-parsed-line)) parsed-lines))
-                               (push (make-instance 'parsed-line :text text :html-tag (html-tag element) :match-group-end group-end :nest-level nest-level) parsed-lines))
-                             (push (make-instance 'parsed-line :text text :html-tag (html-tag element)) parsed-lines)))
+                       (if (is-code element)
+                           (progn
+                             (push (make-instance 'parsed-line :text "" :html-tag :pre) parsed-lines)
+                             (push (parse-source-code-block in line (html-tag element)) parsed-lines))
+                           (let* ((is-list-item (eql (html-tag element) :li))
+                                  (group-end (if is-list-item (if (null (aref group-ends 0)) 0 (aref group-ends 0)) 0))
+                                  (nest-level (if (eql (html-tag element) :li) (get-nest-level previous-parsed-line group-end) nil))
+                                  (group-index (1- (length group-starts)))
+                                  (text (subseq line (aref group-starts group-index))))
+                             (if nest-level
+                                 (progn
+                                   (when (or
+                                          (zerop (nest-level previous-parsed-line))
+                                          (< (nest-level previous-parsed-line) nest-level))
+                                     (push (make-instance 'parsed-line :text "" :html-tag :ul :nest-level (nest-level previous-parsed-line)) parsed-lines))
+                                   (push (make-instance 'parsed-line :text text :html-tag (html-tag element) :match-group-end group-end :nest-level nest-level) parsed-lines))
+                                 (push (make-instance 'parsed-line :text text :html-tag (html-tag element)) parsed-lines))))
                        (return))))
           (when (not match-found)
             (let ((text (if formatter (funcall formatter line) line)))
@@ -221,7 +246,15 @@ Just some normal text here.
  - Sub-Item 4
    - Sub-sub-Item 5
 - Item 6
-- [ ] Checkbox 1")
+- [ ] Checkbox 1
+* Example Code
+#+begin_src lisp
+  (defun add (n1 n2)
+    (let ((n3 (exp n1 n2)))
+      (list n1 n2 n3)))
+#+end_src
+** Example text
+blah blah blah")
 
 (defun save-as-html (html)
   "Saves html to an html file."
