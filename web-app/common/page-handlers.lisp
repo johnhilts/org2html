@@ -8,7 +8,7 @@
   (who:with-html-output-to-string
       (*standard-output* nil :prologue t :indent t)
     (:html
-     (who:str (common-header "Org 2 Html"))
+     (who:str (common-header (list (list :title "Org 2 Html"))))
      (:body
       (:div
        "Welcome to the org2html utility!")
@@ -20,13 +20,12 @@
   (let* ((org-text (tbnl:post-parameter "org-text"))
          (all-html (org2html:build-tree (org2html:parse-org-text (if (zerop (length org-text)) org2html::*test-text* org-text) #'format-for-web)))
          (html-head (cdr (assoc 'org2html:html-head all-html)))
-         (html-body (cdr (assoc 'org2html:html-body all-html)))
-         (title (cadr (assoc :title html-head))))
+         (html-body (cdr (assoc 'org2html:html-body all-html))))
     (eval
      `(who:with-html-output-to-string
           (*standard-output* nil :prologue t :indent t)
         (:html
-         (who:str (common-header (if ,title ,title "Org 2 Html")))
+         (who:str ,(common-header html-head))
          (:body
           (:div
            ,@html-body)))))))
@@ -36,7 +35,7 @@
   (who:with-html-output-to-string
       (*standard-output* nil :prologue t :indent t)
     (:html
-     (who:str (common-header "Org 2 Html - add org markdown"))
+     (who:str (common-header (list (list :title "Org 2 Html - add org markdown"))))
      (:body
       (:div
        (:form :method "post" :action "show"
@@ -49,13 +48,12 @@
   (let* ((org-text (tbnl:post-parameter "org-text"))
          (all-html (org2html:build-tree (org2html:parse-org-text (if (zerop (length org-text)) org2html::*test-text* org-text) #'format-for-web)))
          (html-head (cdr (assoc 'org2html:html-head all-html)))
-         (html-body (cdr (assoc 'org2html:html-body all-html)))
-         (title (cadr (assoc :title html-head))))
+         (html-body (cdr (assoc 'org2html:html-body all-html))))
     (org2html:save-as-html (eval
                             `(who:with-html-output-to-string
                                  (*standard-output* nil :prologue t :indent t)
                                (:html
-                                (who:str (common-header (if ,title ,title "Org 2 Html")))
+                                (who:str ,(common-header html-head))
                                 (:body
                                  (:div
                                   ,@html-body))))))
@@ -67,7 +65,7 @@
   (who:with-html-output-to-string
       (*standard-output* nil :prologue t :indent t)
     (:html
-     (who:str (common-header "Version"))
+     (who:str (common-header (list (list :title "Version"))))
      (:body
       (:div "Version")
       (:div (who:str(get-version)))))))

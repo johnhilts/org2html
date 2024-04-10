@@ -8,4 +8,4 @@
   :serial t
   :components ((:file package)
                (:file org2html))
-  :depends-on (:hunchentoot :cl-who :cl-ppcre))
+  :depends-on (:hunchentoot :cl-who :cl-ppcre :jfh-utility))
