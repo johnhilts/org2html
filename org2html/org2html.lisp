@@ -96,6 +96,29 @@
           1)
       1))
 
+;; todo get language from a dictionary that maps org language names to highlight.js names
+(defun parse-org-source-code-block (in line element code-language parsed-lines)
+  "Parse source code block.
+Input: input stream, current line, parsed element, code-language, parsed lines so far.
+Output: all parsed lines, including new ones added here."
+  (push (make-instance 'parsed-line :text code-language :html-tag :code-language) parsed-lines)
+  (push (make-instance 'parsed-line :text "" :html-tag :pre) parsed-lines)
+  (push (parse-source-code-block in line (html-tag element)) parsed-lines)
+  parsed-lines)
+
+(defun parse-nested-element (element text nest-level group-end previous-parsed-line parsed-lines)
+  "Parse nested element (list item).
+Input: parsed element, parsed text, nest level, match group end, previous parsed line (from previous iteration), parsed lines so far.
+Output: all parsed lines, including new ones added here."
+  (flet ((increase-nest-level-p ()
+           (or
+            (zerop (nest-level previous-parsed-line))
+            (< (nest-level previous-parsed-line) nest-level))))
+    (when (increase-nest-level-p)
+      (push (make-instance 'parsed-line :text "" :html-tag :ul :nest-level (nest-level previous-parsed-line)) parsed-lines)))
+  (push (make-instance 'parsed-line :text text :html-tag (html-tag element) :match-group-end group-end :nest-level nest-level) parsed-lines)
+  parsed-lines)
+
 (defun parse-org-text (org-text &optional formatter)
   "Given a string of text, parse it. Input: text. Output: list suitable for use with something like cl-who."
   (let ((regex-scanners (make-scanners))
@@ -117,22 +140,14 @@
                    (when match-start
                      (setq match-found t)
                      (if (is-code element)
-                         (progn
-                           (push (make-instance 'parsed-line :text (subseq line (aref group-starts 0) (aref group-ends 0)) :html-tag :code-language) parsed-lines)
-                           (push (make-instance 'parsed-line :text "" :html-tag :pre) parsed-lines)
-                           (push (parse-source-code-block in line (html-tag element)) parsed-lines))
+                         (setf parsed-lines (parse-org-source-code-block in line element (subseq line (aref group-starts 0) (aref group-ends 0)) parsed-lines))
                          (let* ((is-list-item (eql (html-tag element) :li))
                                 (group-end (if is-list-item (if (null (aref group-ends 0)) 0 (aref group-ends 0)) 0))
                                 (nest-level (if (eql (html-tag element) :li) (get-nest-level previous-parsed-line group-end) nil))
                                 (group-index (1- (length group-starts)))
                                 (text (subseq line (aref group-starts group-index))))
                            (if nest-level
-                               (progn
-                                 (when (or
-                                        (zerop (nest-level previous-parsed-line))
-                                        (< (nest-level previous-parsed-line) nest-level))
-                                   (push (make-instance 'parsed-line :text "" :html-tag :ul :nest-level (nest-level previous-parsed-line)) parsed-lines))
-                                 (push (make-instance 'parsed-line :text text :html-tag (html-tag element) :match-group-end group-end :nest-level nest-level) parsed-lines))
+                               (setf parsed-lines (parse-nested-element element text nest-level group-end previous-parsed-line parsed-lines))
                                (push (make-instance 'parsed-line :text text :html-tag (html-tag element)) parsed-lines))))
                      (return))))
         (when (not match-found)
@@ -194,31 +209,32 @@ Output: cl-who list of string + anchor tag surrounding URL."
            (head-tree)
            (parents body-tree)
            (previous-level 0))
-      (loop for parsed-line in parsed-lines
-            for tag = (html-tag parsed-line)
-            for text = (text parsed-line)
-            for level = (nest-level parsed-line)
-            do
-               (cond
-                 ((> level previous-level)
-                  (push body-tree parents)
-                  (setf body-tree (car body-tree)))
-                 ((< level previous-level)
-                  (loop repeat (- previous-level level)
-                        do
-                           (setf (car (car parents)) (reverse body-tree))
-                           (setf body-tree (pop parents)))))
-               (if (member tag *header-tags*)
-                   (push (complete-tag tag text) head-tree)
-                   (push (complete-tag tag text) body-tree))
-               (setf previous-level level)
-               (when verbose
-                 (format t "~&***************Input: ~A~%Tree: ~A~%Parents: ~A~%" parsed-line body-tree parents))
-            finally (when (> level 0)
-                      (loop repeat level
-                            do
-                               (setf (car (car parents)) (reverse body-tree))
-                               (setf body-tree (pop parents)))))
+      (flet ((push-in ()
+               (push body-tree parents)
+               (setf body-tree (car body-tree)))
+             (pop-out (times)
+               (loop repeat times
+                     do
+                        (setf (car (car parents)) (reverse body-tree))
+                        (setf body-tree (pop parents)))))
+        (loop for parsed-line in parsed-lines
+              for tag = (html-tag parsed-line)
+              for text = (text parsed-line)
+              for level = (nest-level parsed-line)
+              do
+                 (cond
+                   ((> level previous-level)
+                    (push-in))
+                   ((< level previous-level)
+                    (pop-out (- previous-level level))))
+                 (if (member tag *header-tags*)
+                     (push (complete-tag tag text) head-tree)
+                     (push (complete-tag tag text) body-tree))
+                 (setf previous-level level)
+                 (when verbose
+                   (format t "~&***************Input: ~A~%Tree: ~A~%Parents: ~A~%" parsed-line body-tree parents))
+              finally (when (> level 0)
+                        (pop-out level))))
       (list (cons 'html-head (reverse head-tree))
             (cons 'html-body (reverse body-tree))))))
 

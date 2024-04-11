@@ -1,10 +1,18 @@
 * 03/29/2024 org2html thoughts
-** todo list [3/7]
-- [-] parse source code blocks
+** todo list [4/7]
+- [ ] parse tables [0/2]
+  - [ ] if a line starts and ends with "|" then we have entered a table
+  - [ ] Get all lines until we reach a non-table line
+    - [ ] We need to be able to pass that first non-table line back to the parser.
+    - [ ] If there's a dashed line on the 2nd, 3rd, or 4th line, parse the preceding lines as <thead><tr><th>...
+    - [ ] If there's a dashed line on the bottom 2nd, 3rd, or 4th line, parse the preceding lines as <tfoot><tr><th>...
+    - [ ] All other lines parsed as <tbody><tr><td>...
+- [ ] Support dark / light mode switching
+- [X] parse source code blocks
   - [X] parse code
-  - [ ] update header to use highlight.js
-    - [ ] We need a table to map the source block language names to the highlight.js names.
-    - [ ] These styles and js need to be added
+  - [X] update header to use highlight.js
+    - [X] +We need a table to map the source block language names to the highlight.js names.+
+    - [X] These styles and js need to be added
       #+begin_src html
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -14,11 +22,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/scheme.min.js"></script>
     <script>hljs.highlightAll();</script>
       #+end_src
-- [ ] parse tables
 - [X] parse links
 - [X] parse org titles
 - [X] parse checkboxes!
-- [-] deliver text to the parser
+- [-] deliver text to the parser [1/2]
   - I have elisp to send posts!!
   - [X] Send a region to the server
     - [X] Write elisp part
@@ -27,7 +34,7 @@
     - [ ] Write elisp part
       - [ ] Including the url encoding
     - [X] Return the URL that will serve the html
-- [-] serve the html over http
+- [-] serve the html over http [1/2]
   - [X] "as-is"
     - No other add-ons besides the base HTML
   - [ ] as a mini slide-show
