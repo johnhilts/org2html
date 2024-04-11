@@ -99,51 +99,45 @@
 (defun parse-org-text (org-text &optional formatter)
   "Given a string of text, parse it. Input: text. Output: list suitable for use with something like cl-who."
   (let ((regex-scanners (make-scanners))
-        (string (make-array '(0) :element-type 'base-char :fill-pointer 0 :adjustable t))
         (parsed-lines ()))
     (with-input-from-string (in org-text)
-      (with-output-to-string (out string)
-        (do ((i 1 (incf i))
-             (line #1=(read-line in nil nil) #1#)
-             (match-found nil))
-            ((null line) (values (nreverse parsed-lines) (format nil "~%Original Lines:~%~A~%~D line~:P read." string (1- i))))
-          (loop for regex-scanner in regex-scanners
-                for scanner = (car regex-scanner)
-                for element = (cdr regex-scanner)
-                for previous-parsed-line = (car parsed-lines)
-                do
-                   (setq match-found nil)
-                   (multiple-value-bind (match-start _match-end group-starts group-ends)
-                       (ppcre:scan scanner line)
-                     (declare (ignore _match-end))
-                     (when match-start
-                       (setq match-found t)
-                       (if (is-code element)
-                           (progn
-                             (push (make-instance 'parsed-line :text "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" :html-tag :link) parsed-lines)
-                             (push (make-instance 'parsed-line :text "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" :html-tag :script) parsed-lines)
-                             (push (make-instance 'parsed-line :text "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/lisp.min.js" :html-tag :script) parsed-lines)
-                             (push (make-instance 'parsed-line :text "hljs.highlightAll();" :html-tag :script) parsed-lines)
-                             (push (make-instance 'parsed-line :text "" :html-tag :pre) parsed-lines)
-                             (push (parse-source-code-block in line (html-tag element)) parsed-lines))
-                           (let* ((is-list-item (eql (html-tag element) :li))
-                                  (group-end (if is-list-item (if (null (aref group-ends 0)) 0 (aref group-ends 0)) 0))
-                                  (nest-level (if (eql (html-tag element) :li) (get-nest-level previous-parsed-line group-end) nil))
-                                  (group-index (1- (length group-starts)))
-                                  (text (subseq line (aref group-starts group-index))))
-                             (if nest-level
-                                 (progn
-                                   (when (or
-                                          (zerop (nest-level previous-parsed-line))
-                                          (< (nest-level previous-parsed-line) nest-level))
-                                     (push (make-instance 'parsed-line :text "" :html-tag :ul :nest-level (nest-level previous-parsed-line)) parsed-lines))
-                                   (push (make-instance 'parsed-line :text text :html-tag (html-tag element) :match-group-end group-end :nest-level nest-level) parsed-lines))
-                                 (push (make-instance 'parsed-line :text text :html-tag (html-tag element)) parsed-lines))))
-                       (return))))
-          (when (not match-found)
-            (let ((text (if formatter (funcall formatter line) line)))
-              (push (make-instance 'parsed-line :text text :html-tag :span) parsed-lines)))
-          (format out "Line # ~D: ~A~%" i line))))))
+      (do ((i 1 (incf i))
+           (line #1=(read-line in nil nil) #1#)
+           (match-found nil))
+          ((null line) (nreverse parsed-lines))
+        (loop for regex-scanner in regex-scanners
+              for scanner = (car regex-scanner)
+              for element = (cdr regex-scanner)
+              for previous-parsed-line = (car parsed-lines)
+              do
+                 (setq match-found nil)
+                 (multiple-value-bind (match-start _match-end group-starts group-ends)
+                     (ppcre:scan scanner line)
+                   (declare (ignore _match-end))
+                   (when match-start
+                     (setq match-found t)
+                     (if (is-code element)
+                         (progn
+                           (push (make-instance 'parsed-line :text (subseq line (aref group-starts 0) (aref group-ends 0)) :html-tag :code-language) parsed-lines)
+                           (push (make-instance 'parsed-line :text "" :html-tag :pre) parsed-lines)
+                           (push (parse-source-code-block in line (html-tag element)) parsed-lines))
+                         (let* ((is-list-item (eql (html-tag element) :li))
+                                (group-end (if is-list-item (if (null (aref group-ends 0)) 0 (aref group-ends 0)) 0))
+                                (nest-level (if (eql (html-tag element) :li) (get-nest-level previous-parsed-line group-end) nil))
+                                (group-index (1- (length group-starts)))
+                                (text (subseq line (aref group-starts group-index))))
+                           (if nest-level
+                               (progn
+                                 (when (or
+                                        (zerop (nest-level previous-parsed-line))
+                                        (< (nest-level previous-parsed-line) nest-level))
+                                   (push (make-instance 'parsed-line :text "" :html-tag :ul :nest-level (nest-level previous-parsed-line)) parsed-lines))
+                                 (push (make-instance 'parsed-line :text text :html-tag (html-tag element) :match-group-end group-end :nest-level nest-level) parsed-lines))
+                               (push (make-instance 'parsed-line :text text :html-tag (html-tag element)) parsed-lines))))
+                     (return))))
+        (when (not match-found)
+          (let ((text (if formatter (funcall formatter line) line)))
+            (push (make-instance 'parsed-line :text text :html-tag :span) parsed-lines)))))))
 
 (defun format-urls (string)
   "Format text with URLs as a cl-who sexp.
@@ -187,24 +181,15 @@ Output: cl-who list of string + anchor tag surrounding URL."
     (nreverse list)))
 
 (defparameter *header-tags*
-  (list :title :script :link))
+  (list :title :script :link :code-language))
 
 (defun build-tree (parsed-lines &optional (verbose nil))
-  (labels ((complete-head-tag (tag text)
+  (flet ((complete-tag (tag text)
+           (let ((formatted-text (format-urls text)))
              (cond
-               ((eql :script tag)
-                (if (search "http" text) ;; todo why doesn't jfh-utility:string-starts-with work here??
-                    (apply #'list `(:scrpt :src ,text))
-                    (apply #'list `(:scrpt ,text))))
-               ((eql :link tag) (apply #'list `(:link :rel "stylesheet" :href ,text)))
-               (t (complete-body-tag tag text))))
-           (complete-body-tag (tag text)
-             (let ((formatted-text (format-urls text)))
-               (cond
-                 ((eql :ul tag) (list :ul))
-                 ((eql :input tag) (apply #'list `(:input :type "checkbox" ,@formatted-text :br)))
-                 ((eql :title tag) (apply #'list `(:title ,@formatted-text)))  ;; todo is this necessary??
-                 (t (apply #'list `(,tag ,@formatted-text)))))))
+               ((eql :ul tag) (list :ul))
+               ((eql :input tag) (apply #'list `(:input :type "checkbox" ,@formatted-text :br)))
+               (t (apply #'list `(,tag ,@formatted-text)))))))
     (let* ((body-tree)
            (head-tree)
            (parents body-tree)
@@ -224,8 +209,8 @@ Output: cl-who list of string + anchor tag surrounding URL."
                            (setf (car (car parents)) (reverse body-tree))
                            (setf body-tree (pop parents)))))
                (if (member tag *header-tags*)
-                   (push (complete-head-tag tag text) head-tree)
-                   (push (complete-body-tag tag text) body-tree))
+                   (push (complete-tag tag text) head-tree)
+                   (push (complete-tag tag text) body-tree))
                (setf previous-level level)
                (when verbose
                  (format t "~&***************Input: ~A~%Tree: ~A~%Parents: ~A~%" parsed-line body-tree parents))
