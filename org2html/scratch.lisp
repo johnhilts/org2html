@@ -110,3 +110,28 @@
 (replace-urls "Search on https://www.google.com, then veg-out on https://www.youtube.com")
 (replace-urls "Search on https://www.google.com - it's the best")
 (replace-urls "Pick your favorite: https://www.google.com, https://www.youtube.com")
+
+
+;;; parse an org table
+(defun parse-org-table-row (org-text)
+  (let* ((pattern "^[\\s+]?\\|.+\\|[\\s+]?$")
+         (scanner (ppcre:create-scanner pattern)))
+    (ppcre:scan scanner org-text)))
+
+(defun tester ()
+  (let ((noticed '())
+        (bytes '()))
+    (flet ((notice (x) (push x noticed) x))
+      (with-input-from-string (s "test.bin")
+        (notice (file-position s)) ;1
+        (push (read-char s) bytes)
+        (push (read-char s) bytes)
+        (push (read-char s) bytes)
+        (notice (file-position s)) ;4
+        (notice (file-position s 1)) ;; set to position 1
+        (notice (file-position s))
+        (push (read-char s) bytes)
+        (notice (file-position s)))
+      (values
+       (nreverse noticed)
+       (nreverse bytes)))))

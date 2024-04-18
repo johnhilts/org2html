@@ -1,9 +1,10 @@
 ;;;; Web page sections to include with other pages
 (cl:in-package #:org2html-web-app)
 
-(defun common-header (html-head)
+(defun common-header (html-head &optional (use-light-mode t))
   (let ((title (cadr (assoc :title html-head)))
-        (code-language (cadr (assoc :code-language html-head))))
+        (code-language (cadr (assoc :code-language html-head)))
+        (style-prefix (if (and use-light-mode (member use-light-mode '("t" "true") :test #'string-equal)) "light" "dark")))
     (who:with-html-output-to-string
         (*standard-output* nil :indent t)
       (:head
@@ -12,7 +13,7 @@
        (:title (who:str (format nil "Org 2 Html Utility - ~A" title)))
        (:link :type "text/css"
               :rel "stylesheet"
-              :href (format nil "~A~A~D" (web:static-root *web-configuration*) "/styles.css?v=" (get-version)))
+              :href (format nil "~A~A~D" (web:static-root *web-configuration*) (format nil "/~A-styles.css?v=" style-prefix) (get-version)))
        (when code-language
          (who:htm
           (:link :type "text/css"

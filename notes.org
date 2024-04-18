@@ -1,5 +1,5 @@
 * 03/29/2024 org2html thoughts
-** todo list [4/7]
+** todo list [5/8]
 - [ ] parse tables [0/2]
   - [ ] if a line starts and ends with "|" then we have entered a table
   - [ ] Get all lines until we reach a non-table line
@@ -7,7 +7,9 @@
     - [ ] If there's a dashed line on the 2nd, 3rd, or 4th line, parse the preceding lines as <thead><tr><th>...
     - [ ] If there's a dashed line on the bottom 2nd, 3rd, or 4th line, parse the preceding lines as <tfoot><tr><th>...
     - [ ] All other lines parsed as <tbody><tr><td>...
-- [ ] Support dark / light mode switching
+- [X] Support dark / light mode switching
+  - [X] Add stylesheets.
+  - [X] Update elisp side too.
 - [X] parse source code blocks
   - [X] parse code
   - [X] update header to use highlight.js
