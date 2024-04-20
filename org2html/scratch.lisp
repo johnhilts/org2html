@@ -118,6 +118,82 @@
          (scanner (ppcre:create-scanner pattern)))
     (ppcre:scan scanner org-text)))
 
+(defun table-tester ()
+  (flet ((line-tester (line)
+           (format t "~&Pattern: ~S yields ~{~A~^, ~}~%~%" line (multiple-value-list (parse-org-table-row line)))))
+    (line-tester "| col1 | col2 |")
+    (line-tester " | col1 | col2 |")
+    (line-tester "not a table | col1 | col2 |")
+    (line-tester "|-------+---------------+---|")))
+
+(defun trim-space (string)
+  "Trim spaces from a string."
+  (string-trim '(#\Space) string))
+
+(defun empty-string-p (string)
+  "Predicate tests if string is zero-length"
+  (zerop (length string)))
+
+(defun row-parser (org-row-text)
+  "Input: org table row text; Output: list of columns (td)"
+  (mapcar
+   'trim-space
+   (remove-if
+    'empty-string-p
+    (ppcre:split "\\|" org-row-text))))
+
+(defun table-parser (org-table-text)
+  "Input: org table text - stored as a sequence; Output: list of rows (tr) containing columns (td)"
+  (loop for text in org-table-text
+        collect
+        (row-parser text)))
+
+(defun org-table-tester ()
+  (let ((org-table-text '(
+                          "| Type                                 |   Fat | 1/4 % |"
+                          "|--------------------------------------+-------+-------|"
+                          "| Royal Canin Renal Support Cat Food T |  4.5% |       |"
+                          "| Royal Canin Renal Support Cat Food E |  5.0% |   2.5 |"
+                          "| Royal Canin Renal Support Cat Food D |  6.5% |       |"
+                          "| Royal Canin Renal Support Cat Food F |   15% |  3.75 |"
+                          "| Royal Canin Renal Support Cat Food A |   15% |  3.75 |"
+                          "| Royal Canin Renal Support Cat Food S | 19.5% | 4.875 |"
+                          "| Hills Tuna                           | 24.4% |       |"
+                          "| Hills Chicken                        | 24.5% |       |")))
+    (table-parser org-table-text)))
+
+;; todo add logic to track whether we've it the line yet; also flag whether a line actually denotes a header in the first place;
+;; before hitting the line use <th>, afterwords <td> - don't forget <thead> <tbody> <tfoot> and friends either!
+(defun org-table-2-html (parsed-rows)
+  "Input: a sequence of rows, which are themselves a sequence of columns. Output: a sequence of cl-who html tags"
+  (append
+   '(:table)
+   (loop for parsed-row in parsed-rows
+         collect
+         (append
+          '(:tr)
+          (loop for parsed-column in parsed-row
+                collect
+                (append
+                 '(:td)
+                 (list parsed-column)))))))
+
+(defun org-table-2-html-OLD (parsed-rows)
+  "Input: a sequence of rows, which are themselves a sequence of columns. Output: a sequence of cl-who html tags"
+  (let ((table '(:table)))
+    (loop for parsed-row in parsed-rows
+          with row = (list :tr)
+          do
+             (format t "Row: ~A~%" parsed-row)
+             (loop for parsed-column in parsed-row
+                   and column = (list :td)
+                   do
+                      (format t "Column: ~A~%" parsed-column)
+                      (push parsed-column column)
+                      (push column row))
+             (push row table))
+    table))
+
 (defun tester ()
   (let ((noticed '())
         (bytes '()))
