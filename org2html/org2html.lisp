@@ -14,7 +14,7 @@
 
 (defparameter *elements*
   (list
-   (make-instance 'element :pattern "^\\#\\+begin_src\\s(\\w+)" :html-tag :code :is-code t)
+   (make-instance 'element :pattern "^[\\s+]?\\#\\+begin_src\\s(\\w+)" :html-tag :code :is-code t)
    (make-instance 'element :pattern "^\\#\\+title:\\s(.+)" :html-tag :title)
    (make-instance 'element :pattern "^(\\s+)?\\- \\[ \\]\\s+(\\w+)" :html-tag :input)
    (make-instance 'element :pattern "^(\\s+)?\\-\\s+(\\w+)" :html-tag :li :is-item t)
@@ -78,7 +78,7 @@
         (when (search "#+end_src" line)
           (setf end-of-block t))
         (unless end-of-block
-          (format out "~A~%" line))))))
+          (format out "~A~%" (tbnl:escape-for-html line)))))))
 
 (defgeneric get-nest-level (parsed-line group-end))
 (defmethod get-nest-level ((previous-line parsed-line) group-end)
