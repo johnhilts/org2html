@@ -166,17 +166,27 @@
 ;; before hitting the line use <th>, afterwords <td> - don't forget <thead> <tbody> <tfoot> and friends either!
 (defun org-table-2-html (parsed-rows)
   "Input: a sequence of rows, which are themselves a sequence of columns. Output: a sequence of cl-who html tags"
-  (append
-   '(:table)
-   (loop for parsed-row in parsed-rows
-         collect
-         (append
-          '(:tr)
-          (loop for parsed-column in parsed-row
-                collect
-                (append
-                 '(:td)
-                 (list parsed-column)))))))
+  (let* ((scanner (ppcre:create-scanner "^[\\-\\+]+$"))
+         (has-header (find-if (lambda (row) (some (lambda (e) (ppcre:scan scanner e)) row)) parsed-rows))
+         (passed-header nil))
+    (append
+     '(:table)
+     (remove-if
+      (lambda (e)
+        (null (cddr e)))
+      (loop for parsed-row in parsed-rows
+            collect
+            (append
+             '(:tr)
+             (loop for parsed-column in parsed-row
+                   collect
+                   (append
+                    (if (or (not has-header) passed-header) '(:td) '(:th))
+                    (if (ppcre:scan scanner parsed-column)
+                        (progn
+                          (setf passed-header t)
+                          nil)
+                        (list parsed-column))))))))))
 
 (defun org-table-2-html-OLD (parsed-rows)
   "Input: a sequence of rows, which are themselves a sequence of columns. Output: a sequence of cl-who html tags"
