@@ -172,20 +172,19 @@
     (append
      '(:table)
      (remove-if
-      (lambda (e)
-        (null (cddr e)))
+      #'null
       (loop for parsed-row in parsed-rows
             collect
-            (append
-             '(:tr)
-             (loop for parsed-column in parsed-row
-                   collect
-                   (append
-                    (if (or (not has-header) passed-header) '(:td) '(:th))
-                    (if (ppcre:scan scanner parsed-column)
-                        (progn
-                          (setf passed-header t)
-                          nil)
+            (if (ppcre:scan scanner (car parsed-row))
+                (progn
+                  (setf passed-header t)
+                  nil)
+                (append
+                 '(:tr)
+                 (loop for parsed-column in parsed-row
+                       collect
+                       (append
+                        (if (or (not has-header) passed-header) '(:td) '(:th))
                         (list parsed-column))))))))))
 
 (defun org-table-2-html-OLD (parsed-rows)
