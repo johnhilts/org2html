@@ -9,4 +9,6 @@
    #:generate-unique-token
    #:hash-password
    #:serialize-to-json
-   #:string-starts-with))
+   #:string-starts-with
+   #:trim-space
+   #:empty-string-p))

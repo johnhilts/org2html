@@ -8,12 +8,16 @@
    (%is-item :reader is-item
              :initarg :is-item
              :initform nil)
+   (%is-table :reader is-table
+             :initarg :is-table
+             :initform nil)
    (%is-code :reader is-code
              :initarg :is-code
              :initform nil)))
 
 (defparameter *elements*
   (list
+   (make-instance 'element :pattern "^[\\s+]?(\\|.+\\|)[\\s+]?$" :html-tag :tr :is-table t)
    (make-instance 'element :pattern "^[\\s+]?\\#\\+begin_src\\s(\\w+)" :html-tag :code :is-code t)
    (make-instance 'element :pattern "^\\#\\+title:\\s(.+)" :html-tag :title)
    (make-instance 'element :pattern "^(\\s+)?\\- \\[ \\]\\s+(\\w+)" :html-tag :input)
@@ -104,6 +108,24 @@ Output: all parsed lines, including new ones added here."
   (push (make-instance 'parsed-line :text code-language :html-tag :code-language) parsed-lines)
   (push (make-instance 'parsed-line :text "" :html-tag :pre) parsed-lines)
   (push (parse-source-code-block in line (html-tag element)) parsed-lines)
+  parsed-lines)
+
+(defun parse-table-row (element text previous-parsed-line parsed-lines)
+  "Parse table row.
+Input: parsed element, parsed text, level, previous parsed line (from previous iteration), parsed lines so far.
+Output: all parsed lines, including new ones added here."
+  (flet ((row-parser (text)
+           (mapcar
+            #'jfh-utility:trim-space
+            (remove-if
+             #'jfh-utility:empty-string-p
+             (ppcre:split "\\|" text)))))
+    (when (zerop (nest-level previous-parsed-line))
+      (push (make-instance 'parsed-line :text "" :html-tag :table :nest-level 0) parsed-lines))
+    (push (make-instance 'parsed-line :text "" :html-tag (html-tag element) :nest-level 1) parsed-lines)
+    (loop for column in (row-parser text)
+          do
+             (push (make-instance 'parsed-line :text column :html-tag :td :nest-level 2) parsed-lines))) ;; todo add logic to track the header here
   parsed-lines)
 
 (defun parse-nested-element (element text nest-level group-end previous-parsed-line parsed-lines)
@@ -250,6 +272,22 @@ Output: cl-who list of string + anchor tag surrounding URL."
                (:div
                 ,@html-body)))))))
 
+(defun who-test-table (&optional (text *test-text*) (table-text *test-text-table*))
+  (who-test (concatenate 'string text table-text)))
+
+(defparameter *test-text-table*
+  "
+| Type                                 |   Fat | 1/4 % |
+|--------------------------------------+-------+-------|
+| Royal Canin Renal Support Cat Food T |  4.5% |       |
+| Royal Canin Renal Support Cat Food E |  5.0% |   2.5 |
+| Royal Canin Renal Support Cat Food D |  6.5% |       |
+| Royal Canin Renal Support Cat Food F |   15% |  3.75 |
+| Royal Canin Renal Support Cat Food A |   15% |  3.75 |
+| Royal Canin Renal Support Cat Food S | 19.5% | 4.875 |
+| Hills Tuna                           | 24.4% |       |
+| Hills Chicken                        | 24.5% |       |")
+
 (defparameter *test-text* "#+title: The Test Document
 * Top
 ** Next Level
@@ -272,6 +310,29 @@ Just some normal text here.
 #+end_src
 ** Example text
 blah blah blah")
+
+(defun test-row-parser (&optional (text *test-text-table*))
+  (let ((org-text text))
+    (let ((regex-scanners (make-scanners))
+          (parsed-lines (loop for x in '(1 2 3) collect (make-instance 'parsed-line :text (format nil "~D" x) :html-tag :span))))
+      (with-input-from-string (in org-text)
+        (do ((i 1 (incf i))
+             (line #1=(read-line in nil nil) #1#))
+            ((null line) (nreverse parsed-lines))
+          (loop for regex-scanner in regex-scanners
+                for scanner = (car regex-scanner)
+                for element = (cdr regex-scanner)
+                for previous-parsed-line = (car parsed-lines)
+                do
+                   (multiple-value-bind (match-start _match-end group-starts group-ends)
+                       (ppcre:scan scanner line)
+                     (declare (ignore _match-end group-ends))
+                     (when match-start
+                       (let* ((group-index (1- (length group-starts)))
+                              (text (subseq line (aref group-starts group-index))))
+                         (setf parsed-lines (parse-table-row element text previous-parsed-line parsed-lines)))
+                       (return)))))))))
+
 
 (defun save-as-html (html)
   "Saves html to an html file."
