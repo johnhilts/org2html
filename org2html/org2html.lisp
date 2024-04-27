@@ -1,5 +1,7 @@
 (cl:in-package #:org2html)
 
+(defparameter *has-header-line* nil)
+
 (defclass element ()
   ((%pattern :reader pattern
              :initarg :pattern)
@@ -49,10 +51,7 @@
                      :initform nil)
    (%nest-level :reader nest-level
                 :initarg :nest-level
-                :initform 0)
-   (%sub-list :accessor sub-list
-              :initarg :sub-list
-              :initform nil))
+                :initform 0))
   (:documentation "The results of a parsed line."))
 
 (defmethod print-object ((parsed-line parsed-line) stream)
@@ -120,12 +119,17 @@ Output: all parsed lines, including new ones added here."
             (remove-if
              #'jfh-utility:empty-string-p
              (ppcre:split "\\|" text)))))
-    (when (zerop (nest-level previous-parsed-line))
+    (when (or
+           (null previous-parsed-line)
+           (zerop (nest-level previous-parsed-line)))
+      (setf *has-header-line* nil)
       (push (make-instance 'parsed-line :text "" :html-tag :table :nest-level 0) parsed-lines))
     (push (make-instance 'parsed-line :text "" :html-tag (html-tag element) :nest-level 1) parsed-lines)
-    (loop for column in (row-parser text)
-          do
-             (push (make-instance 'parsed-line :text column :html-tag :td :nest-level 2) parsed-lines))) ;; todo add logic to track the header here
+    (if (and (not *has-header-line*) (ppcre:scan (ppcre:create-scanner "^[|\\-\\+]+$") text))
+        (setf *has-header-line* t)
+        (loop for column in (row-parser text)
+              do
+                 (push (make-instance 'parsed-line :text column :html-tag (if *has-header-line* :td :th) :nest-level 2) parsed-lines))))
   parsed-lines)
 
 (defun parse-nested-element (element text nest-level group-end previous-parsed-line parsed-lines)
@@ -134,6 +138,7 @@ Input: parsed element, parsed text, nest level, match group end, previous parsed
 Output: all parsed lines, including new ones added here."
   (flet ((increase-nest-level-p ()
            (or
+            (null previous-parsed-line)
             (zerop (nest-level previous-parsed-line))
             (< (nest-level previous-parsed-line) nest-level))))
     (when (increase-nest-level-p)
@@ -165,11 +170,17 @@ Output: all parsed lines, including new ones added here."
                          (setf parsed-lines (parse-org-source-code-block in line element (subseq line (aref group-starts 0) (aref group-ends 0)) parsed-lines))
                          (let* ((is-list-item (eql (html-tag element) :li))
                                 (group-end (if is-list-item (if (null (aref group-ends 0)) 0 (aref group-ends 0)) 0))
-                                (nest-level (if (eql (html-tag element) :li) (get-nest-level previous-parsed-line group-end) nil))
+                                (is-table  (is-table element))
+                                (nest-level
+                                  (if (eql (html-tag element) :li)
+                                      (if previous-parsed-line (get-nest-level previous-parsed-line group-end) nil)
+                                      (if is-table 1 nil)))
                                 (group-index (1- (length group-starts)))
                                 (text (subseq line (aref group-starts group-index))))
                            (if nest-level
-                               (setf parsed-lines (parse-nested-element element text nest-level group-end previous-parsed-line parsed-lines))
+                               (if is-table
+                                   (setf parsed-lines (parse-table-row element text previous-parsed-line parsed-lines))
+                                   (setf parsed-lines (parse-nested-element element text nest-level group-end previous-parsed-line parsed-lines)))
                                (push (make-instance 'parsed-line :text text :html-tag (html-tag element)) parsed-lines))))
                      (return))))
         (when (not match-found)
@@ -226,6 +237,7 @@ Output: cl-who list of string + anchor tag surrounding URL."
              (cond
                ((eql :ul tag) (list :ul))
                ((eql :input tag) (apply #'list `(:input :type "checkbox" ,@formatted-text :br)))
+               ((eql :table tag) (reverse (apply #'list `(:table :border "3" :cellspacing "3")))) ;; todo why does just this one have to be forth style??
                (t (apply #'list `(,tag ,@formatted-text)))))))
     (let* ((body-tree)
            (head-tree)

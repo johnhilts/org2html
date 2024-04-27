@@ -162,7 +162,6 @@
                           "| Hills Chicken                        | 24.5% |       |")))
     (table-parser org-table-text)))
 
-;; todo add logic to track whether we've it the line yet; also flag whether a line actually denotes a header in the first place;
 ;; before hitting the line use <th>, afterwords <td> - don't forget <thead> <tbody> <tfoot> and friends either!
 (defun org-table-2-html (parsed-rows)
   "Input: a sequence of rows, which are themselves a sequence of columns. Output: a sequence of cl-who html tags"
