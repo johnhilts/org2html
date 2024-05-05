@@ -123,12 +123,13 @@ Output: all parsed lines, including new ones added here."
            (zerop (nest-level previous-parsed-line)))
       (setf *has-header-line* nil)
       (push (make-instance 'parsed-line :text "" :html-tag :table :nest-level 0) parsed-lines))
-    (push (make-instance 'parsed-line :text "" :html-tag (html-tag element) :nest-level 1) parsed-lines)
     (if (and (not *has-header-line*) (ppcre:scan (ppcre:create-scanner "^[|\\-\\+]+$") text))
         (setf *has-header-line* t)
-        (loop for column in (row-parser text)
-              do
-                 (push (make-instance 'parsed-line :text column :html-tag (if *has-header-line* :td :th) :nest-level 2) parsed-lines))))
+        (progn
+              (push (make-instance 'parsed-line :text "" :html-tag (html-tag element) :nest-level 1) parsed-lines)
+              (loop for column in (row-parser text)
+                    do
+                       (push (make-instance 'parsed-line :text column :html-tag (if *has-header-line* :td :th) :nest-level 2) parsed-lines)))))
   parsed-lines)
 
 (defun parse-nested-element (element text nest-level group-end previous-parsed-line parsed-lines)
