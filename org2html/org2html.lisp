@@ -59,12 +59,11 @@
   (print-unreadable-object (parsed-line stream :type t)
     (with-accessors ((text text)
                      (html-tag html-tag)
-                     (nest-level nest-level)
-                     (sub-list sub-list))
+                     (nest-level nest-level))
         parsed-line
       (format stream
-	      "Text: ~S, HTML Tag: ~S~:[~:;, Nest Level: ~:*~D~]~:[~:;, Sub-List?: ~:*~A~]"
-	      text html-tag nest-level (when sub-list t)))))
+	      "Text: ~S, HTML Tag: ~S~:[~:;, Nest Level: ~:*~D~]"
+	      text html-tag nest-level))))
 
 (defun parse-source-code-block (in line tag)
   "Parse source code block. Input: input stream and parsed lines. First line of source code block. Output: parsed lines."
