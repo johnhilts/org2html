@@ -241,10 +241,10 @@
     ((member (html-tag parsed-line) '(ul table pre) :test 'string=)
      "")
     (t
-     (format nil "~A. ~A~%" (html-tag parsed-line) (text parsed-line)))))
+     (format nil "~%~(~A~). ~A~%" (html-tag parsed-line) (text parsed-line)))))
 
 (defun build-tree-for-jira (&optional (text *test-text*) (table-text *test-text-table*))
-  (format t "~{~A~}"
+  (format nil "~%~{~A~}"
           (mapcar
            (lambda (parsed-line)
              (convert-to-jira-markup parsed-line))

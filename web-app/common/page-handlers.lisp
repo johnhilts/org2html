@@ -43,23 +43,31 @@
 	       (:div (:textarea :id "org-text" :name "org-text" :placeholder "Add org mode markdown text here." :autofocus "autofocus" :rows "40" :cols "150"))
 	       (:div (:button "Add")))))))))
 
-(tbnl:define-easy-handler (receive :uri "/receive") (use-light-mode)
-  "http post handler that orchestrates org -> html conversion then saves as a file and returns a url to that file."
-  (let* ((org-text (tbnl:post-parameter "org-text"))
-         (all-html (org2html:build-tree (org2html:parse-org-text (if (zerop (length org-text)) org2html::*test-text* org-text) #'format-for-web)))
-         (html-head (cdr (assoc 'org2html:html-head all-html)))
-         (html-body (cdr (assoc 'org2html:html-body all-html))))
-    (org2html:save-as-html (eval
-                            `(who:with-html-output-to-string
-                                 (*standard-output* nil :prologue t :indent t)
-                               (:html
-                                (who:str ,(common-header html-head use-light-mode))
-                                (:body
-                                 (:div
-                                  ,@html-body))))))
+(defun use-jira (org-text)
+  (let* ((jira-markdown (org2html::build-tree-for-jira (if (zerop (length org-text)) org2html::*test-text* org-text) "")))
     (who:with-html-output-to-string
         (*standard-output* nil :prologue t :indent t)
-      (:html (:body (:div (:a :href #1="http://192.168.1.18:5096/show.html" #1#)))))))
+      (:html (:body (:div (:text-area (who:str jira-markdown)))))))))
+
+(tbnl:define-easy-handler (receive :uri "/receive") (use-light-mode use-jira)
+  "http post handler that orchestrates org -> html conversion then saves as a file and returns a url to that file."
+  (let ((org-text (tbnl:post-parameter "org-text")))
+    (if (string= "t" use-jira)
+        (use-jira org-text)
+        (let* ((all-html (org2html:build-tree (org2html:parse-org-text (if (zerop (length org-text)) org2html::*test-text* org-text) #'format-for-web)))
+               (html-head (cdr (assoc 'org2html:html-head all-html)))
+               (html-body (cdr (assoc 'org2html:html-body all-html))))
+          (org2html:save-as-html (eval
+                                  `(who:with-html-output-to-string
+                                       (*standard-output* nil :prologue t :indent t)
+                                     (:html
+                                      (who:str ,(common-header html-head use-light-mode))
+                                      (:body
+                                       (:div
+                                        ,@html-body))))))
+          (who:with-html-output-to-string
+              (*standard-output* nil :prologue t :indent t)
+            (:html (:body (:div (:a :href #1="http://192.168.1.18:5096/show.html" #1#)))))))))
 
 (tbnl:define-easy-handler (version-page :uri "/version") ()
   (who:with-html-output-to-string
