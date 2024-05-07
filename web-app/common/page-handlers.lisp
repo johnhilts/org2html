@@ -44,7 +44,7 @@
 	       (:div (:button "Add")))))))))
 
 (defun use-jira (org-text)
-  (let* ((jira-markdown (org2html::build-tree-for-jira (if (zerop (length org-text)) org2html::*test-text* org-text) "")))
+  (let* ((jira-markdown (org2html:build-tree-for-jira (if (zerop (length org-text)) org2html::*test-text* org-text))))
     (who:with-html-output-to-string
         (*standard-output* nil :prologue t :indent t)
       (:html (:body (:div (:text-area (who:str jira-markdown)))))))))

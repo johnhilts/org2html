@@ -272,6 +272,36 @@ Output: cl-who list of string + anchor tag surrounding URL."
       (list (cons 'html-head (reverse head-tree))
             (cons 'html-body (reverse body-tree))))))
 
+(defun convert-to-jira-markup (parsed-line)
+  (cond ; replace with CASE here?
+    ((string= 'li (symbol-value (html-tag parsed-line)))
+     (format nil "~A ~A~%" (make-string (nest-level parsed-line) :initial-element #\-) (text parsed-line)))
+    ((string= 'span (html-tag parsed-line))
+     (format nil "~A~%" (text parsed-line)))
+    ((string= 'tr (html-tag parsed-line))
+     (format nil "~%| "))
+    ((string= 'th (html-tag parsed-line))
+     (format nil "**~A** |" (text parsed-line)))
+    ((string= 'td (html-tag parsed-line))
+     (format nil "~A |" (text parsed-line)))
+    ((string= 'input (html-tag parsed-line))
+     (format nil "**TODO**: ~A~%" (text parsed-line)))
+    ((string= 'code-language (html-tag parsed-line))
+     (format nil "{code:~A}~%" (text parsed-line)))
+    ((string= 'code (html-tag parsed-line))
+     (format nil "~A~%{code}~%" (text parsed-line)))
+    ((member (html-tag parsed-line) '(ul table pre) :test 'string=)
+     "")
+    (t
+     (format nil "~%~(~A~). ~A~%" (html-tag parsed-line) (text parsed-line)))))
+
+(defun build-tree-for-jira (&optional (text *test-text*))
+  (format nil "~%~{~A~}"
+          (mapcar
+           (lambda (parsed-line)
+             (convert-to-jira-markup parsed-line))
+           (parse-org-text text))))
+
 (defun who-test (&optional (text *test-text*))
   (let* ((all-html (build-tree (parse-org-text text)))
          (html-head (cdr (assoc 'html-head all-html)))
