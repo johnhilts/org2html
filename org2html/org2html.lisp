@@ -17,19 +17,22 @@
              :initarg :is-code
              :initform nil)))
 
+(defparameter *displayable-text-pattern* "\\+\\*\\$\\\"\\w"
+  "Subset of characters that are acceptable as text. Regex format.")
+
 (defparameter *elements*
   (list
    (make-instance 'element :pattern "^[\\s+]?(\\|.+\\|)[\\s+]?$" :html-tag :tr :is-table t)
    (make-instance 'element :pattern "^[\\s+]?\\#\\+begin_src\\s(\\w+)" :html-tag :code :is-code t)
    (make-instance 'element :pattern "^\\#\\+title:\\s(.+)" :html-tag :title)
-   (make-instance 'element :pattern "^(\\s+)?\\- \\[ \\]\\s+(\\w+)" :html-tag :input)
-   (make-instance 'element :pattern "^(\\s+)?\\-\\s+(\\w+)" :html-tag :li :is-item t)
-   (make-instance 'element :pattern "^[\\s+]?\\*\\s+(\\w+)" :html-tag :h1)
-   (make-instance 'element :pattern "^[\\s+]?\\*\\*\\s+(\\w+)" :html-tag :h2)
-   (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\s+(\\w+)" :html-tag :h3)
-   (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\*\\s+(\\w+)" :html-tag :h4)
-   (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\*\\*\\s+(\\w+)" :html-tag :h5)
-   (make-instance 'element :pattern "^[\\s+]?\\*\\*\\*\\*\\*\\*\\s+(\\w+)" :html-tag :h6)))
+   (make-instance 'element :pattern (format nil "^(\\s+)?\\- \\[ \\]\\s+([~A]+)" *displayable-text-pattern*) :html-tag :input)
+   (make-instance 'element :pattern (format nil "^(\\s+)?\\-\\s+([~A]+)" *displayable-text-pattern*) :html-tag :li :is-item t)
+   (make-instance 'element :pattern (format nil "^[\\s+]?\\*\\s+([~A]+)" *displayable-text-pattern*) :html-tag :h1)
+   (make-instance 'element :pattern (format nil "^[\\s+]?\\*\\*\\s+([~A]+)" *displayable-text-pattern*) :html-tag :h2)
+   (make-instance 'element :pattern (format nil "^[\\s+]?\\*\\*\\*\\s+([~A]+)" *displayable-text-pattern*) :html-tag :h3)
+   (make-instance 'element :pattern (format nil "^[\\s+]?\\*\\*\\*\\*\\s+([~A]+)" *displayable-text-pattern*) :html-tag :h4)
+   (make-instance 'element :pattern (format nil "^[\\s+]?\\*\\*\\*\\*\\*\\s+([~A]+)" *displayable-text-pattern*) :html-tag :h5)
+   (make-instance 'element :pattern (format nil "^[\\s+]?\\*\\*\\*\\*\\*\\*\\s+([~A]+)" *displayable-text-pattern*) :html-tag :h6)))
 
 (defun make-scanner-from-pattern (pattern)
   "make a regex scanner from a pattern"
