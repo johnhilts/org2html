@@ -179,7 +179,8 @@ Output: all parsed lines, including new ones added here."
                                       (if previous-parsed-line (get-nest-level previous-parsed-line group-end) nil)
                                       (if is-table 1 nil)))
                                 (group-index (1- (length group-starts)))
-                                (text (subseq line (aref group-starts group-index))))
+                                (raw-text (subseq line (aref group-starts group-index)))
+                                (text (if formatter (funcall formatter raw-text) raw-text)))
                            (if nest-level
                                (if is-table
                                    (setf parsed-lines (parse-table-row element text previous-parsed-line parsed-lines))
@@ -383,4 +384,4 @@ blah blah blah")
   "Saves html to an html file."
   (let ((path "./html/show.html"))
     (with-open-file (out path  :direction :output :if-exists :supersede :if-does-not-exist :create)
-      (format out html))))
+      (write-string html out))))

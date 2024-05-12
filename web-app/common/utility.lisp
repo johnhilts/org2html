@@ -8,5 +8,6 @@
      (cl-ppcre:regex-replace-all (string (car cur)) acc (cdr cur)))
    (list
     (cons #\Return "<br />")
-    (cons #\~ "~~"))
+    ;; (cons #\~ "~~")
+    )
    :initial-value string))
