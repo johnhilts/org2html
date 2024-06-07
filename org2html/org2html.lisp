@@ -27,7 +27,7 @@
    (make-instance 'element :pattern "^\\#\\+title:\\s(.+)" :html-tag :title)
    (make-instance 'element :pattern (format nil "^(\\s+)?\\- \\[ \\]\\s+([~A]+)" *displayable-text-pattern*) :html-tag :input)
    (make-instance 'element :pattern (format nil "^(\\s+)?\\-\\s+([~A]+)" *displayable-text-pattern*) :html-tag :li :is-item t)
-   (make-instance 'element :pattern (format nil "^(\\s+)?(\\d\\.\\s+[~A]+)" *displayable-text-pattern*) :html-tag :ol :is-item t)
+   (make-instance 'element :pattern (format nil "^(\\s+)?(\\d+\\.\\s+[~A]+)" *displayable-text-pattern*) :html-tag :ol :is-item t)
    (make-instance 'element :pattern (format nil "^[\\s+]?\\*\\s+([~A]+)" *displayable-text-pattern*) :html-tag :h1)
    (make-instance 'element :pattern (format nil "^[\\s+]?\\*\\*\\s+([~A]+)" *displayable-text-pattern*) :html-tag :h2)
    (make-instance 'element :pattern (format nil "^[\\s+]?\\*\\*\\*\\s+([~A]+)" *displayable-text-pattern*) :html-tag :h3)
