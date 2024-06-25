@@ -63,10 +63,9 @@
 
 (defun %web-app-running-p ()
   "Check if the web app - actually hunchentoot server - is running.
-This is meant to be a convenience function;
-NOTE use of non-exported symbol."
+This is meant to be a convenience function."
   (handler-case 
-      (null (tbnl::acceptor-shutdown-p (web::hunchentoot-acceptor web::*web-application*)))
+      (tbnl:started-p (web::hunchentoot-acceptor web::*web-application*))
     (unbound-variable (condition)
       (let ((name (symbol-name (cell-error-name condition))))
         (if (string-equal (symbol-name 'web::*web-application*) name)
@@ -77,10 +76,10 @@ NOTE use of non-exported symbol."
   "NOTE - Just a convenience method! For Web."
   (setq tbnl:*dispatch-table* (last tbnl:*dispatch-table*)))
 
-
-(defun %refresh-web-auth-functions ()
-  "The function pointers don't automatically updated when a function is re-compiled, so use this to update them."
-  (auth:use-web-auth (main::register-web-auth-functions)))
+;; no auth in this app?
+;; (defun %refresh-web-auth-functions ()
+;;   "The function pointers don't automatically updated when a function is re-compiled, so use this to update them."
+;;   (auth:use-web-auth (main::register-web-auth-functions)))
 
 (defun %list-all-package-symbols (package-name)
   "Not sure if I want this."
