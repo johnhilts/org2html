@@ -202,7 +202,7 @@ Input: part of target string preceding matching part, match start position, matc
 Output: cl-who list of string + anchor tag surrounding URL."
            (list (subseq string part-before-match-start match-start)
                  (list :a :href (format nil "~A" the-match) the-match))))
-    (let ((regex "(?:http|https)://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,3}(/\\S*)?"))
+    (let ((regex "(?:http|https)://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,3}(?::\\d+)?(/\\S*)?"))
       (do
        ((i 0)
         (no-matches)
@@ -231,6 +231,7 @@ Output: cl-who list of string + anchor tag surrounding URL."
     (let ((s "Search on https://www.google.com, then veg-out on https://www.youtube.com")) (format t "~S: ~S~%~%**********" s  (push (format-urls s) list)))
     (let ((s "Search on https://www.google.com - it's the best"))(format t "~S: ~S~%~%**********" s (push (format-urls s) list)))
     (let ((s "Pick your favorite: https://www.google.com, https://www.youtube.com")) (format t "~S: ~S~%~%**********" s (push (format-urls s) list)))
+    (let ((s "Jira: https://lampstrack.lampsplus.com:8443/browse/AZFM-1506")) (format t "~S: ~S~%~%**********" s (push (format-urls s) list)))
     (nreverse list)))
 
 (defparameter *header-tags*
