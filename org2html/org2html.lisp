@@ -196,13 +196,20 @@ Output: all parsed lines, including new ones added here."
   "Format text with URLs as a cl-who sexp.
 Input: text.
 Output: cl-who sexp of (:span text) or if URLs are found then (:span (:a :href \"url\" url))"
-  (flet ((format-url (part-before-match-start match-start the-match)
+  (flet ((format-url-org (part-before-match-start match-start the-match-url the-match-text)
+           "Format 1 URL.
+Input: part of target string preceding matching part, match start position, matching part of string (url), matching part of string (text).
+Output: cl-who list of string + anchor tag surrounding URL."
+           (list (subseq string part-before-match-start match-start)
+                 (list :a :href (format nil "~A" the-match-url) the-match-text)))
+         (format-url-bare (part-before-match-start match-start the-match)
            "Format 1 URL.
 Input: part of target string preceding matching part, match start position, matching part of string.
 Output: cl-who list of string + anchor tag surrounding URL."
            (list (subseq string part-before-match-start match-start)
                  (list :a :href (format nil "~A" the-match) the-match))))
-    (let ((regex "(?:http|https)://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,3}(?::\\d+)?(/\\S*)?"))
+    (let ((regex-org "\\[\\[(.*?)\\]\\[(.*?)\\]\\]")
+          (regex-bare "(?:http|https)://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,3}(?::\\d+)?(/\\S*)?"))
       (do
        ((i 0)
         (no-matches)
@@ -215,23 +222,34 @@ Output: cl-who list of string + anchor tag surrounding URL."
           ((>= next-start-pos (length string)) results)
           (t (append results (list (subseq string next-start-pos))))))
         (multiple-value-bind
-              (match-start match-end group-starts group-ends)
-            (cl-ppcre:scan regex string :start i)
-          (declare (ignore group-starts group-ends))
-          (when match-start
-            (let ((the-match (subseq string match-start match-end)))
-              (setf results (append results (format-url next-start-pos match-start the-match)))
-              (setf next-start-pos match-end)
-              (setf i (1+ match-end))))
-          (unless match-start
-            (setf no-matches t)))))))
+              (match-start-org match-end-org group-starts-org group-ends-org)
+            (cl-ppcre:scan regex-org string :start i)
+          (when match-start-org
+            (let ((the-match-url (subseq string (aref group-starts-org 0) (aref group-ends-org 0)))
+                  (the-match-text (subseq string (aref group-starts-org 1) (aref group-ends-org 1))))
+              (setf results (append results (format-url-org next-start-pos match-start-org the-match-url the-match-text)))
+              (setf next-start-pos match-end-org)
+              (setf i (1+ match-end-org))))
+          (unless match-start-org
+            (multiple-value-bind
+                  (match-start match-end group-starts group-ends)
+                (cl-ppcre:scan regex-bare string :start i)
+              (declare (ignore group-starts group-ends))
+              (when match-start
+                (let ((the-match (subseq string match-start match-end)))
+                  (setf results (append results (format-url-bare next-start-pos match-start the-match)))
+                  (setf next-start-pos match-end)
+                  (setf i (1+ match-end))))
+              (unless match-start
+                (setf no-matches t)))))))))
 
 (defun run-format-urls-tests ()
   (let ((list ()))
-    (let ((s "Search on https://www.google.com, then veg-out on https://www.youtube.com")) (format t "~S: ~S~%~%**********" s  (push (format-urls s) list)))
-    (let ((s "Search on https://www.google.com - it's the best"))(format t "~S: ~S~%~%**********" s (push (format-urls s) list)))
-    (let ((s "Pick your favorite: https://www.google.com, https://www.youtube.com")) (format t "~S: ~S~%~%**********" s (push (format-urls s) list)))
-    (let ((s "Jira: https://lampstrack.lampsplus.com:8443/browse/AZFM-1506")) (format t "~S: ~S~%~%**********" s (push (format-urls s) list)))
+    (let ((s "Search on https://www.google.com, then veg-out on https://www.youtube.com")) (format t "~S: ~S~%~%**********" s  (push (format-urls-test s) list)))
+    (let ((s "Search on https://www.google.com - it's the best"))(format t "~S: ~S~%~%**********" s (push (format-urls-test s) list)))
+    (let ((s "Pick your favorite: https://www.google.com, https://www.youtube.com")) (format t "~S: ~S~%~%**********" s (push (format-urls-test s) list)))
+    (let ((s "Jira: https://lampstrack.lampsplus.com:8443/browse/AZFM-1506")) (format t "~S: ~S~%~%**********" s (push (format-urls-test s) list)))
+    (let ((s "Org 1: [[http://www.org.com][Org Site]], Normal 1: http://www.site.com, Org 2: [[http://www.org2.com][2nd Org Site]], Normal 2: http://www.googoh.com")) (format t "~S: ~S~%~%**********" s (push (format-urls-test s) list)))
     (nreverse list)))
 
 (defparameter *header-tags*
