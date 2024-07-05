@@ -71,7 +71,7 @@
 
 (defun parse-source-code-block (in line tag)
   "Parse source code block. Input: input stream and parsed lines. First line of source code block. Output: parsed lines."
-  (let ((output-string (make-array '(0) :element-type 'base-char :fill-pointer 0 :adjustable t)))
+  (let ((output-string (make-array '(0) :element-type 'character :fill-pointer 0 :adjustable t)))
     (with-output-to-string (out output-string)
       (do
        (end-of-block)
