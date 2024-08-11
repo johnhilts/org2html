@@ -17,7 +17,7 @@
              :initarg :is-code
              :initform nil)))
 
-(defparameter *displayable-text-pattern* "\\+\\*\\$\\\"\\w"
+(defparameter *displayable-text-pattern* "\\+\\*\\$\\\"\\w\["
   "Subset of characters that are acceptable as text. Regex format.")
 
 (defparameter *elements*
