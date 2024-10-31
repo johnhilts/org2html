@@ -219,3 +219,14 @@
       (values
        (nreverse noticed)
        (nreverse bytes)))))
+
+(defun parse-org-url (&optional (text "Before [[http://www.test.com][Test Link]] after."))
+  (let ((pattern "\\[\\[(http.+)\\]\\[(.+)\\]\\]"))
+      ;; (pattern "\\[http"))
+  ;; (cl-ppcre:scan pattern text)
+  (multiple-value-bind (match-start match-end group-starts group-ends) (cl-ppcre:scan pattern text)
+    ;; (declare (ignore group-starts group-ends))
+    (when match-start
+      (format t "~A~%" (subseq text match-start match-end)))
+    (when group-starts
+      (format t "Link: ~A, Text: ~A~%" (subseq text (aref group-starts 0) (aref group-ends 0)) (subseq text (aref group-starts 1) (aref group-ends 1)))))))

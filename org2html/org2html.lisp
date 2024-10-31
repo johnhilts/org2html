@@ -192,6 +192,8 @@ Output: all parsed lines, including new ones added here."
           (let ((text (if formatter (funcall formatter line) line)))
             (push (make-instance 'parsed-line :text text :html-tag :span) parsed-lines)))))))
 
+(defvar *use-jira-link-format* nil)
+
 (defun format-urls (string)
   "Format text with URLs as a cl-who sexp.
 Input: text.
@@ -201,13 +203,17 @@ Output: cl-who sexp of (:span text) or if URLs are found then (:span (:a :href \
 Input: part of target string preceding matching part, match start position, matching part of string (url), matching part of string (text).
 Output: cl-who list of string + anchor tag surrounding URL."
            (list (subseq string part-before-match-start match-start)
-                 (list :a :href (format nil "~A" the-match-url) the-match-text)))
+                 (if *use-jira-link-format*
+                     (format nil "[~A|~A]" the-match-text the-match-url)
+                     (list :a :href (format nil "~A" the-match-url) the-match-text))))
          (format-url-bare (part-before-match-start match-start the-match)
            "Format 1 URL.
 Input: part of target string preceding matching part, match start position, matching part of string.
 Output: cl-who list of string + anchor tag surrounding URL."
            (list (subseq string part-before-match-start match-start)
-                 (list :a :href (format nil "~A" the-match) the-match))))
+                 (if *use-jira-link-format*
+                     the-match
+                     (list :a :href (format nil "~A" the-match) the-match)))))
     (let ((regex-org "\\[\\[(.*?)\\]\\[(.*?)\\]\\]")
           (regex-bare "(?:http|https)://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,3}(?::\\d+)?(/\\S*)?"))
       (do
@@ -245,11 +251,11 @@ Output: cl-who list of string + anchor tag surrounding URL."
 
 (defun run-format-urls-tests ()
   (let ((list ()))
-    (let ((s "Search on https://www.google.com, then veg-out on https://www.youtube.com")) (format t "~S: ~S~%~%**********" s  (push (format-urls-test s) list)))
-    (let ((s "Search on https://www.google.com - it's the best"))(format t "~S: ~S~%~%**********" s (push (format-urls-test s) list)))
-    (let ((s "Pick your favorite: https://www.google.com, https://www.youtube.com")) (format t "~S: ~S~%~%**********" s (push (format-urls-test s) list)))
-    (let ((s "Jira: https://lampstrack.lampsplus.com:8443/browse/AZFM-1506")) (format t "~S: ~S~%~%**********" s (push (format-urls-test s) list)))
-    (let ((s "Org 1: [[http://www.org.com][Org Site]], Normal 1: http://www.site.com, Org 2: [[http://www.org2.com][2nd Org Site]], Normal 2: http://www.googoh.com")) (format t "~S: ~S~%~%**********" s (push (format-urls-test s) list)))
+    (let ((s "Search on https://www.google.com, then veg-out on https://www.youtube.com")) (format t "~S: ~S~%~%**********" s  (push (format-urls s) list)))
+    (let ((s "Search on https://www.google.com - it's the best"))(format t "~S: ~S~%~%**********" s (push (format-urls s) list)))
+    (let ((s "Pick your favorite: https://www.google.com, https://www.youtube.com")) (format t "~S: ~S~%~%**********" s (push (format-urls s) list)))
+    (let ((s "Jira: https://lampstrack.lampsplus.com:8443/browse/AZFM-1506")) (format t "~S: ~S~%~%**********" s (push (format-urls s) list)))
+    (let ((s "Org 1: [[http://www.org.com][Org Site]], Normal 1: http://www.site.com, Org 2: [[http://www.org2.com][2nd Org Site]], Normal 2: http://www.googoh.com")) (format t "~S: ~S~%~%**********" s (push (format-urls s) list)))
     (nreverse list)))
 
 (defparameter *header-tags*
@@ -297,34 +303,37 @@ Output: cl-who list of string + anchor tag surrounding URL."
             (cons 'html-body (reverse body-tree))))))
 
 (defun convert-to-jira-markup (parsed-line)
-  (cond ; replace with CASE here?
-    ((string= 'li (symbol-value (html-tag parsed-line)))
-     (format nil "~A ~A~%" (make-string (nest-level parsed-line) :initial-element #\-) (text parsed-line)))
-    ((string= 'span (html-tag parsed-line))
-     (format nil "~A~%" (text parsed-line)))
-    ((string= 'tr (html-tag parsed-line))
-     (format nil "~%| "))
-    ((string= 'th (html-tag parsed-line))
-     (format nil "**~A** |" (text parsed-line)))
-    ((string= 'td (html-tag parsed-line))
-     (format nil "~A |" (text parsed-line)))
-    ((string= 'input (html-tag parsed-line))
-     (format nil "**TODO**: ~A~%" (text parsed-line)))
-    ((string= 'code-language (html-tag parsed-line))
-     (format nil "{code:~A}~%" (text parsed-line)))
-    ((string= 'code (html-tag parsed-line))
-     (format nil "~A~%{code}~%" (text parsed-line)))
-    ((member (html-tag parsed-line) '(ul table pre) :test 'string=)
-     "")
-    (t
-     (format nil "~%~(~A~). ~A~%" (html-tag parsed-line) (text parsed-line)))))
+  (flet ((format-text (text)
+           (format nil "~{~A~}" (format-urls text))))
+    (cond ; replace with CASE here?
+      ((string= 'li (symbol-value (html-tag parsed-line)))
+       (format nil "~A ~A~%" (make-string (nest-level parsed-line) :initial-element #\-) (format-text (text parsed-line))))
+      ((string= 'span (html-tag parsed-line))
+       (format nil "~A~%" (format-text (text parsed-line))))
+      ((string= 'tr (html-tag parsed-line))
+       (format nil "~%| "))
+      ((string= 'th (html-tag parsed-line))
+       (format nil "**~A** |" (text parsed-line)))
+      ((string= 'td (html-tag parsed-line))
+       (format nil "~A |" (text parsed-line)))
+      ((string= 'input (html-tag parsed-line))
+       (format nil "**TODO**: ~A~%" (text parsed-line)))
+      ((string= 'code-language (html-tag parsed-line))
+       (format nil "{code:~A}~%" (text parsed-line)))
+      ((string= 'code (html-tag parsed-line))
+       (format nil "~A~%{code}~%" (text parsed-line)))
+      ((member (html-tag parsed-line) '(ul table pre) :test 'string=)
+       "")
+      (t
+       (format nil "~%~(~A~). ~A~%" (html-tag parsed-line) (format-text (text parsed-line)))))))
 
 (defun build-tree-for-jira (&optional (text *test-text*))
-  (format nil "~%~{~A~}"
-          (mapcar
-           (lambda (parsed-line)
-             (convert-to-jira-markup parsed-line))
-           (parse-org-text text))))
+  (let ((*use-jira-link-format* t))
+    (format nil "~%~{~A~}"
+            (mapcar
+             (lambda (parsed-line)
+               (convert-to-jira-markup parsed-line))
+             (parse-org-text text)))))
 
 (defun who-test (&optional (text *test-text*))
   (let* ((all-html (build-tree (parse-org-text text)))
@@ -375,7 +384,10 @@ Just some normal text here.
       (list n1 n2 n3)))
 #+end_src
 ** Example text
-blah blah blah")
+blah blah blah
+** Example links
+- Go to: [[http://www.site.com][The Site]]!
+- then, visit: https://www.anothersite.com - go now!")
 
 (defun test-row-parser (&optional (text *test-text-table*))
   (let ((org-text text))
